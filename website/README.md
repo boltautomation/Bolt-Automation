@@ -2,6 +2,8 @@
 
 A buildless, responsive promotional site using the desktop UI's exact **#141414** background, neutral surfaces, and a restrained yellow-green logo accent. The layout centers the real screenshot, keeps copy concise, and combines the feature details into one tabbed workspace section. Static HTML, CSS, and JavaScript; no analytics, forms, cookies, backend, or hosted AI calls.
 
+The workspace showcase and download panel retain the original green gradient styling. The full-width navbar stays visible while scrolling and fades from the logo's yellow-green hues into the grey background. Anchor offsets leave room for the sticky navigation on desktop and mobile.
+
 Production: **https://bolt-automation.vercel.app**. Vercel project: **bolt-automation**, ID **prj_dRR68XD4me2xFwzrPo324YPkGmXb**, in **johnasdr39-1559s-projects**. Production is public; preview deployments retain Vercel Authentication. The initial release was uploaded through the Vercel API; GitHub pushes do not automatically redeploy this project. Upload only this directory's deployable files for future releases, or explicitly configure the Git integration with **website** as its root directory.
 
 Deploy this **website/** directory as the Vercel project root using the Other/static preset and no build command. Do not deploy the repository root, app runtime, or saved data. The desktop app itself remains a Windows download and does not run on this website.

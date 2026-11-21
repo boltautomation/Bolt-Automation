@@ -29,7 +29,7 @@
   --surface:#191919;
   --accent:#c8dc63;
   scroll-behavior:smooth;
-  scroll-padding-top:32px;
+  scroll-padding-top:120px;
 }
 * {box-sizing:border-box}
 body {margin:0;background:#141414}
@@ -46,7 +46,8 @@ h1,h2,h3,p {margin-top:0}
 .wrap {width:min(1120px,calc(100% - 80px));margin-inline:auto}
 .skip-link {position:fixed;z-index:99;top:12px;left:12px;transform:translateY(-160%);padding:12px 18px;background:#ececec;color:#141414;border-radius:8px}
 .skip-link:focus {transform:none}
-.site-header {height:88px;display:flex;align-items:center;justify-content:space-between;gap:28px;border-bottom:1px solid var(--line);position:relative;z-index:5}
+.site-header {height:88px;position:sticky;top:0;z-index:30;background:linear-gradient(180deg,#14141400,#141414 100%),linear-gradient(105deg,#343824,#29331f 55%,#22291d)}
+.header-inner {height:100%;display:flex;align-items:center;justify-content:space-between;gap:28px;border-bottom:1px solid var(--line);position:relative}
 .brand {display:inline-flex;align-items:center;gap:9px;flex-shrink:0}
 .brand img {width:37px;height:34px}
 .brand span {font:italic 800 28px/1 "Bahnschrift",Manrope,sans-serif;letter-spacing:-.8px;padding-right:3px;background:linear-gradient(90deg,#dde33a,#a9cc40);background-clip:text;-webkit-background-clip:text;color:transparent}
@@ -93,12 +94,11 @@ h1 span {color:#979797}
 .section-heading .eyebrow,.faq-section .eyebrow {margin-bottom:14px}
 h2 {font-size:clamp(32px,3.2vw,44px);line-height:1.2;letter-spacing:-1.8px;font-weight:600;margin:0}
 .section-heading>p {font-size:16px;color:#929292;line-height:1.85;margin:0 0 3px}
-.showcase {border:1px solid var(--line);border-radius:12px;background:var(--surface);overflow:hidden}
-.showcase-tabs {display:flex;gap:26px;padding:0 32px;border-bottom:1px solid var(--line)}
-.showcase-tabs button {position:relative;background:transparent;color:#939393;border:0;padding:21px 2px;font-size:14px;line-height:1.5;transition:color 160ms}
-.showcase-tabs button:hover {color:#ddd}
-.showcase-tabs button[aria-selected=true] {color:#ececec}
-.showcase-tabs button[aria-selected=true]:after {content:"";height:2px;background:var(--accent);position:absolute;left:0;right:0;bottom:0}
+.showcase {border:1px solid #ffffff17;border-radius:20px;background:linear-gradient(135deg,#20241a,#14170f 65%);overflow:hidden}
+.showcase-tabs {display:flex;gap:7px;padding:16px 24px;border-bottom:1px solid #ffffff0c;background:#ffffff01}
+.showcase-tabs button {position:relative;background:transparent;color:#969e88;border:1px solid transparent;border-radius:8px;padding:11px 18px;font-size:14px;line-height:1.5;transition:color 160ms,background-color 160ms,border-color 160ms}
+.showcase-tabs button:hover {color:#e0e8cd}
+.showcase-tabs button[aria-selected=true] {background:#cadb3d10;border-color:#c2d33d30;color:#d6e76a}
 .showcase-tabs button:focus-visible {outline-offset:-5px}
 .showcase-panel {display:grid;grid-template-columns:1fr 1fr;gap:65px;align-items:center;min-height:430px;padding:48px}
 .showcase-copy h3 {font-size:26px;line-height:1.35;letter-spacing:-.8px;font-weight:600;margin-bottom:17px}
@@ -108,7 +108,7 @@ h2 {font-size:clamp(32px,3.2vw,44px);line-height:1.2;letter-spacing:-1.8px;font-
 .check-list li:before {content:"✓";position:absolute;left:0;color:#919191}
 .showcase-copy>.small-note {font-size:13px;line-height:1.9;color:#858585;margin:23px 0 0}
 .source-visual {min-width:0}
-.source-card {padding:24px;border:1px solid #ffffff12;border-radius:9px;background:#1e1e1e}
+.source-card {padding:24px;border:1px solid #d8e65a26;border-radius:13px;background:linear-gradient(140deg,#303727,#202619);box-shadow:0 18px 40px #0003}
 .source-card-head {display:flex;gap:12px;align-items:center;padding-bottom:20px;border-bottom:1px solid var(--line)}
 .file-icon {display:grid;place-items:center;width:32px;height:38px;border:1px solid #ffffff1a;border-radius:5px;color:#bbb;flex-shrink:0;font-size:20px}
 .source-card-head strong {display:block;font-size:14px;font-weight:600}
@@ -118,7 +118,7 @@ h2 {font-size:clamp(32px,3.2vw,44px);line-height:1.2;letter-spacing:-1.8px;font-
 .source-lines span {height:4px;background:#ffffff0a;border-radius:2px}
 .source-lines span:nth-child(2) {width:88%}
 .source-lines span:nth-child(3) {width:66%}
-.highlighted-passage {font-size:17px;line-height:1.75;font-weight:400;color:#d0d0d0;border-left:2px solid #6e6e6e;padding:4px 0 4px 16px;margin:23px 0 0}
+.highlighted-passage {font-size:17px;line-height:1.75;font-weight:400;color:#dae4bd;background:#c8db3920;border-left:2px solid #cadc54;border-radius:0 4px 4px 0;padding:13px 16px;margin:23px -5px 0}
 .source-card-foot {font-size:12px;line-height:1.7;color:#888;margin-top:24px;padding-top:16px;border-top:1px solid var(--line)}
 .visual-caption {font-size:12px;color:#777;text-align:center;margin:14px 0 0;line-height:1.7}
 .check-steps {list-style:none;padding:0;margin:0;display:grid}
@@ -128,7 +128,7 @@ h2 {font-size:clamp(32px,3.2vw,44px);line-height:1.2;letter-spacing:-1.8px;font-
 .check-steps li>span {font-size:12px;color:#727272;padding-top:2px;font-variant-numeric:tabular-nums}
 .check-steps strong {font-size:15px;font-weight:600}
 .check-steps p {font-size:14px;line-height:1.8;color:#8e8e8e;margin:7px 0 0}
-.control-sample {padding:25px;border:1px solid #ffffff12;border-radius:9px;background:#1e1e1e}
+.control-sample {padding:25px;border:1px solid #d2e44f20;border-radius:15px;background:linear-gradient(150deg,#2a3220,#1a2114);box-shadow:0 20px 40px #0002}
 .control-heading {display:flex;justify-content:space-between;align-items:center;gap:12px;border-bottom:1px solid var(--line);padding-bottom:21px}
 .control-heading strong {font-size:16px;font-weight:600}
 .control-heading>span {font-size:12px;color:#828282}
@@ -153,7 +153,18 @@ h2 {font-size:clamp(32px,3.2vw,44px);line-height:1.2;letter-spacing:-1.8px;font-
 .faq-list details>p {font-size:15px;line-height:1.9;color:#969696;margin:0 20px 23px 0}
 .faq-list a {text-decoration:underline;text-underline-offset:4px;color:#bdbdbd}
 .download-section {padding-bottom:78px}
-.download-panel {display:grid;grid-template-columns:1fr auto;gap:60px;align-items:center;padding:42px 45px;border:1px solid var(--line);background:#191919;border-radius:12px}
+.download-panel {display:grid;grid-template-columns:1fr auto;gap:60px;align-items:center;padding:42px 45px;border:1px solid #d2e04d24;background:radial-gradient(ellipse at 0% 100%,#bbcc3d20,transparent 65%),linear-gradient(115deg,#29321a,#1a2114 57%,#171c12);border-radius:23px}
+.download-panel .button-primary {background:#d7e747;color:#1b210e;border-color:#e4ef6c;box-shadow:0 4px 24px #a9cc400d,inset 0 1px 0 #ffffff3b}
+.download-panel .button-primary:hover {background:#e0ed60;border-color:#e4ef6c}
+.showcase .check-list li:before,.check-steps li>span {color:#c7d955}
+.showcase .file-icon {color:#c6d54e;border-color:#c2d33c29;background:#bdce3d0d}
+.showcase .source-lines span {background:#b3c58313}
+.showcase .source-card-head small,.showcase .source-chip,.showcase .source-card-foot,.showcase .visual-caption {color:#a3b18b}
+.showcase .control-sample output {color:#d7e76d}
+.showcase .control-sample input[type=range] {accent-color:#cbdc4e}
+.download-panel .eyebrow,.download-panel .download-detail,.download-panel .download-terms,.download-panel .download-terms a {color:#a8b88a}
+.download-panel .download-content>p:not(.eyebrow) {color:#b2bf98}
+.download-panel .text-link {color:#cfdf67}
 .download-content .eyebrow {margin-bottom:12px}
 .download-content h2 {font-size:35px;letter-spacing:-1.3px}
 .download-content>p:not(.eyebrow) {font-size:16px;line-height:1.85;color:#989898;margin:19px 0 17px}
@@ -214,7 +225,8 @@ h2 {font-size:clamp(32px,3.2vw,44px);line-height:1.2;letter-spacing:-1.8px;font-
 }
 @media(max-width:560px) {
   .wrap {width:calc(100% - 40px)}
-  .site-header {height:73px;gap:16px}
+  .site-header {height:73px}
+  .header-inner {gap:16px}
   .brand {gap:6px}
   .brand img {width:32px;height:30px}
   .brand span {font-size:26px}
@@ -247,9 +259,9 @@ h2 {font-size:clamp(32px,3.2vw,44px);line-height:1.2;letter-spacing:-1.8px;font-
   .section-heading h2,h2 {font-size:32px;letter-spacing:-1.2px}
   .section-heading>p {margin-top:17px;max-width:none;font-size:16px}
   .section-heading>p br {display:none}
-  .showcase {border-radius:9px}
-  .showcase-tabs {display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;padding:0 14px}
-  .showcase-tabs button {font-size:14px;padding:18px 0;line-height:1.5}
+  .showcase {border-radius:14px}
+  .showcase-tabs {display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:4px;padding:10px}
+  .showcase-tabs button {font-size:14px;padding:10px 4px;line-height:1.5}
   .showcase-panel {padding:26px 22px;gap:28px}
   .showcase-copy h3 {font-size:25px}
   .showcase-copy>p {font-size:16px;line-height:1.85}
@@ -268,7 +280,7 @@ h2 {font-size:clamp(32px,3.2vw,44px);line-height:1.2;letter-spacing:-1.8px;font-
   .faq-list summary {font-size:15px;gap:15px;padding:19px 0}
   .faq-list details>p {font-size:15px;margin-right:0}
   .download-section {padding-bottom:52px}
-  .download-panel {padding:28px 23px;border-radius:9px;gap:27px}
+  .download-panel {padding:28px 23px;border-radius:17px;gap:27px}
   .download-content h2 {font-size:30px;letter-spacing:-1px}
   .download-content>p:not(.eyebrow) {font-size:16px}
   .download-content>p br {display:none}
@@ -291,6 +303,6 @@ h2 {font-size:clamp(32px,3.2vw,44px);line-height:1.2;letter-spacing:-1.8px;font-
 @media(forced-colors:active) {
   .brand span {background:none;color:CanvasText}
   .button-primary,.button-outline,.showcase,.app-window {border-color:ButtonText}
-  .showcase-tabs button[aria-selected=true]:after {background:Highlight}
+  .showcase-tabs button[aria-selected=true] {border-color:Highlight;color:HighlightText;background:Highlight}
   .check-list li:before,.status-dot {color:CanvasText}
 }
