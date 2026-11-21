@@ -8,7 +8,7 @@ Production: **https://bolt-automation.vercel.app**. Vercel project: **bolt-autom
 
 Deploy this **website/** directory as the Vercel project root using the Other/static preset and no build command. Do not deploy the repository root, app runtime, or saved data. The desktop app itself remains a Windows download and does not run on this website.
 
-Download links target the versioned v1 - oak Windows, Apple Silicon Mac, and Intel Mac packages on GitHub. The hero uses the supplied screenshot of the real desktop app; other previews are labeled illustrative. Pointer-driven screenshot parallax settles smoothly, stops when idle, and respects reduced motion and touch devices. Feature tabs, a demo-only pace slider, mobile navigation, and FAQ disclosures work in the browser.
+Download links target the versioned V1.1 - oak Windows, Apple Silicon Mac, and Intel Mac packages on GitHub. The hero uses the supplied screenshot of the real desktop app; other previews are labeled illustrative. Pointer-driven screenshot parallax settles smoothly, stops when idle, and respects reduced motion and touch devices. Feature tabs, a demo-only pace slider, mobile navigation, and FAQ disclosures work in the browser.
 
 Separate app usage and website terms are linked in the footer and beside the download. They cover authorized educational use, AI and automation risks, third-party services, privacy, and limits on warranties and liability while preserving mandatory rights. The terms are not a guarantee of legal protection; the operator should have a qualified lawyer review the wording, operator identity, jurisdiction, and assent process for their circumstances. Nothing adds an acceptance gate to the existing desktop release.
 
