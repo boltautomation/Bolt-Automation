@@ -18,8 +18,9 @@ const {MemoryAccounts,MemoryProgress}=require('./memory-stores.cjs');
   assert.deepEqual(policy,{checks:true,guesses:false,confidence:'90',delay:'3000',checked:'1',review:'1'});
   await fs.mkdir('test-results',{recursive:true});await fs.writeFile('test-results/accuracy-workspace.png',await browser.screenshot());
   for(const [width,height]of [[320,704],[390,844],[987,704]]){await browser.command('Emulation.setDeviceMetricsOverride',{width,height,deviceScaleFactor:1,mobile:false});await wait(100);assert.equal(await browser.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);}
-  await browser.clickElement(()=>document.getElementById('accuracy-settings'),null,{signal});await wait(220);
-  assert.equal(await browser.evaluate(()=>document.activeElement.id),'doubleCheck');
+  assert.equal(await browser.evaluate(()=>document.querySelector('.accuracy-banner,.intended-use-note')),null);
+  await browser.clickElement(()=>document.querySelector('[data-tab=settings]'),null,{signal});await wait(220);
+  assert.equal(await browser.evaluate(()=>document.getElementById('tab-settings').hidden),false);
   await browser.evaluate(()=>document.getElementById('settings-form').requestSubmit());
   await browser.navigate(app.origin+'/?accuracy=2#settings',signal);await wait(350);
   assert.equal(await browser.evaluate(()=>document.getElementById('guessWhenStuck').checked),false);
@@ -27,6 +28,6 @@ const {MemoryAccounts,MemoryProgress}=require('./memory-stores.cjs');
   await browser.evaluate(()=>{document.getElementById('guessWhenStuck').checked=true;document.getElementById('settings-form').requestSubmit();});
   await browser.navigate(app.origin+'/?accuracy=3#settings',signal);await wait(350);
   assert.equal(await browser.evaluate(()=>document.getElementById('guessWhenStuck').checked),true,'an explicit new choice is preserved');
-  console.log('PASS legacy settings upgraded to source checks and guesses off, timing preserved, quality counters, responsive layout, settings focus, persistence and explicit opt-in.');
+  console.log('PASS legacy settings upgrade, timing preserved, quality counters, banner-free main page, responsive layout, Settings access, persistence and explicit opt-in.');
  }finally{await browser.close();await app.close();}
 })().catch(e=>{console.error(e);process.exitCode=1;});

@@ -32,7 +32,7 @@ const execute=promisify(execFile);
       const assert=require('node:assert/strict'),path=require('node:path'),fs=require('node:fs/promises');
       (async()=>{const root=process.argv[1],{createApp}=require(path.join(root,'app/server.cjs'));const app=await createApp({port:0});try{
         const health=await(await fetch(app.origin+'/health')).json();assert.ok(health.app.endsWith('local-app'));
-        const html=await(await fetch(app.origin)).text();assert.match(html,/id="setup-guide"/);assert.match(html,/Built for learning/);
+        const html=await(await fetch(app.origin)).text();assert.match(html,/id="setup-guide"/);assert.match(html,/id="intended-use"/);
         for(const route of ['/core.js','/client.js','/app.css','/assets/bolt.png'])assert.equal((await fetch(app.origin+route)).status,200,route);
         const state=await(await fetch(app.origin+'/api/state',{headers:{'X-App-Token':app.token}})).json();assert.deepEqual(state.accounts,[]);assert.deepEqual(state.queue,[]);
         const response=await fetch(app.origin+'/api/study/import?name=practice.pdf',{method:'POST',headers:{'X-App-Token':app.token,'Content-Type':'application/pdf'},body:await fs.readFile(process.argv[2])});
