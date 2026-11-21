@@ -1,0 +1,26 @@
+<div id="pdf-answer-tools">
+  <p class="hint">Import your PDFs and keep answers you have checked. These local tools do not require a website account.</p>
+  <div id="study-status" class="status" role="status" aria-live="polite">Import a PDF to begin, or open your verified-answer library.</div>
+  <div class="study-grid">
+    <div class="study-main">
+      <section class="card"><div class="card-heading"><h2>Ask your documents</h2><span class="muted">Local Ollama</span></div>
+        <label for="study-question">Your question</label><textarea id="study-question" maxlength="4000" rows="3" placeholder="What would you like to understand?"></textarea>
+        <div class="study-actions"><button id="study-ask" type="button" class="primary">Find an answer <span>↑</span></button><button id="study-search" type="button" class="secondary">Find passages</button><button id="study-cancel" type="button" class="text-button" hidden>Cancel</button></div>
+        <p class="hint">Search checks your verified answers first, then ranks passages from the selected PDFs. Model answers need your review.</p>
+      </section>
+      <section id="study-result" class="card" hidden><div class="card-heading"><h2>Answer</h2><span id="study-result-label" class="muted">Not verified</span></div>
+        <label for="study-answer">Answer <span class="muted">editable</span></label><textarea id="study-answer" rows="4" maxlength="6000"></textarea><p id="study-explanation" class="study-explanation"></p>
+        <label class="check"><input id="study-verified" type="checkbox"><span>I checked this answer and confirm it is correct.</span></label><button id="study-save-answer" class="secondary" type="button" disabled>Save as verified</button>
+      </section>
+      <section class="card"><div class="card-heading"><h2>Source passages</h2><span id="study-ranking" class="muted"></span></div><div id="study-passages" class="study-passages"><p class="empty-small">Page references and supporting excerpts will appear here.</p></div></section>
+    </div>
+    <div class="study-tools">
+      <section class="card"><div class="card-heading"><h2>Your PDFs <span id="study-document-count" class="muted">0</span></h2><button id="study-refresh" type="button" class="text-button">Refresh</button></div>
+        <label for="study-file" class="hint">Readable PDF · up to 8 MB / 200 pages</label><input id="study-file" type="file" accept="application/pdf,.pdf"><button id="study-import" type="button" class="secondary full">Import PDF</button>
+        <div id="study-documents" class="study-documents"></div><p class="hint">Select the PDFs to search. Removing a PDF also removes verified answers linked to it. Image-only scans need OCR first.</p>
+      </section>
+      <details class="card study-library" open><summary>Previously verified answers <span id="study-answer-count" class="muted">0</span></summary><input id="study-answer-search" type="search" placeholder="Search saved answers…" aria-label="Search verified answers"><div id="study-saved-answers"></div></details>
+      <details class="card study-research"><summary>Manual research browser</summary><label for="study-research-url">Research website</label><input id="study-research-url" type="url" placeholder="https://example.edu/article"><label class="check"><input id="study-reject-cookies" type="checkbox"><span>Decline optional cookies when an explicit rejection choice is available</span></label><div class="study-actions"><button id="study-open-research" type="button" class="secondary">Open page</button><button id="study-close-research" type="button" class="text-button" disabled>Close browser</button></div><p id="study-research-status" class="hint" role="status">Browsing is manual. This tool only handles explicit cookie choices.</p></details>
+    </div>
+  </div>
+</div>

@@ -1,0 +1,44 @@
+const http=require('node:http');
+const assert=require('node:assert/strict');
+const fs=require('node:fs/promises');
+const path=require('node:path');
+const os=require('node:os');
+const {setTimeout:wait}=require('node:timers/promises');
+const {createApp}=require('../app/server.cjs');
+const {Manager}=require('../app/manager.cjs');
+const {Browser}=require('../app/browser.cjs');
+const {StudyService}=require('../app/study.cjs');
+const {ResearchPrivacy}=require('../app/research-privacy.cjs');
+const {MemoryAccounts,MemoryProgress}=require('./memory-stores.cjs');
+const {testPdf}=require('./pdf-fixture.cjs');
+(async()=>{
+  const dir=await fs.mkdtemp(path.join(os.tmpdir(),'bolt-study-ui-'));let app,ui,calls=0;
+  const site=http.createServer((req,res)=>{res.setHeader('Content-Type','text/html; charset=utf-8');res.end(`<!doctype html><main><h1>Public research article</h1><button onclick="document.body.dataset.unrelated='clicked'">Decline all</button><div id="cookie-consent" role="dialog"><p>This website uses cookies.</p><button onclick="document.body.dataset.cookieChoice='accept';this.parentElement.remove()">Accept all</button>${req.url==='/accept-only'?'':'<button onclick="document.body.dataset.cookieChoice=\'reject\';this.parentElement.remove()">Reject all</button>'}</div></main>`);});
+  await new Promise(resolve=>site.listen(0,'127.0.0.1',resolve));const source=`http://127.0.0.1:${site.address().port}`;
+  const study=new StudyService({file:path.join(dir,'study.json'),fetcher:async(url,request)=>{calls++;const b=JSON.parse(request.body),passages=JSON.parse(b.messages[1].content).passages;const result=b.format.properties.ratings?{ratings:passages.map(p=>({id:p.id,relevance:p.text.includes('Ottawa')?1:0}))}:{answer:'Ottawa',explanation:'The document identifies Ottawa as the capital.',supported:true,citations:[{id:passages.find(p=>p.text.includes('Ottawa')).id,quote:'Ottawa is the capital of Canada'}]};return {ok:true,json:async()=>({done:true,message:{content:JSON.stringify(result)}})};}});
+  const privacy=new ResearchPrivacy({factory:()=>new Browser({headless:true}),validate:value=>{if(new URL(value).origin!==source)throw new Error('Only the local fixture is allowed.');return value;}});
+  const manager=new Manager({accountStore:new MemoryAccounts(),progressStore:new MemoryProgress()});
+  const until=async check=>{for(let i=0;i<100;i++){if(await check())return;await wait(100);}throw new Error('Study UI timed out.');};
+  try{
+    app=await createApp({manager,study,privacy,port:0});assert.equal((await fetch(app.origin+'/api/study/state')).status,403);
+    const oversized=await fetch(app.origin+'/api/study/import?name=wrong.pdf',{method:'POST',headers:{'X-App-Token':app.token,'Content-Type':'text/plain'},body:'not pdf'});assert.equal(oversized.status,415);
+    ui=new Browser({headless:true,origins:[app.origin]});await ui.launch(AbortSignal.timeout(30000));await ui.navigate(app.origin,AbortSignal.timeout(30000));await ui.evaluate(()=>{document.querySelector('[data-tab=settings]').click();document.getElementById('pdf-tools').open=true;});assert.equal(await ui.evaluate(()=>Boolean(document.querySelector('[data-tab=study]'))),false);await until(async()=>await ui.evaluate(()=>!document.getElementById('tab-settings').hidden&&document.getElementById('pdf-tools').open));
+    const pdf=testPdf(['Toronto is a city in Ontario.','Ottawa is the capital of Canada and the seat of the federal government.']);
+    await ui.evaluate(bytes=>{const transfer=new DataTransfer();transfer.items.add(new File([new Uint8Array(bytes)],'Canada notes.pdf',{type:'application/pdf'}));document.getElementById('study-file').files=transfer.files;document.getElementById('study-import').click();},[...pdf]);
+    await until(async()=>(await study.state()).documents.length===1);await until(async()=>await ui.evaluate(()=>!document.getElementById('study-ask').disabled));
+    await ui.evaluate(()=>{document.getElementById('study-question').value='What is the capital of Canada?';document.getElementById('study-ask').click();});
+    await until(async()=>await ui.evaluate(()=>document.getElementById('study-answer').value==='Ottawa'&&!document.getElementById('study-ask').disabled));assert.equal(calls,2);assert.equal((await study.state()).answers.length,0);
+    assert.equal(await ui.evaluate(()=>document.getElementById('study-save-answer').disabled),true);
+    await ui.evaluate(()=>{document.getElementById('study-verified').click();document.getElementById('study-save-answer').click();});await until(async()=>(await study.state()).answers.length===1);await until(async()=>await ui.evaluate(()=>!document.getElementById('study-ask').disabled));
+    await ui.evaluate(()=>document.getElementById('study-ask').click());await until(async()=>await ui.evaluate(()=>document.getElementById('study-result-label').textContent==='Previously verified'));assert.equal(calls,2);
+    assert.ok((await ui.evaluate(()=>document.getElementById('study-passages').textContent)).includes('page 2'));
+    assert.equal(await ui.evaluate(()=>document.getElementById('study-reject-cookies').checked),false);
+    await ui.evaluate(url=>{document.querySelector('.study-research').open=true;document.getElementById('study-research-url').value=url;document.getElementById('study-reject-cookies').checked=true;document.getElementById('study-open-research').click();},source+'/research');await until(()=>privacy.snapshot().rejected===1);
+    assert.equal(await privacy.browser.evaluate(()=>document.body.dataset.cookieChoice),'reject');assert.equal(await privacy.browser.evaluate(()=>document.body.dataset.unrelated),undefined);
+    await privacy.browser.navigate(source+'/accept-only',AbortSignal.timeout(10000));await privacy.tick();assert.equal(await privacy.browser.evaluate(()=>document.body.dataset.cookieChoice),undefined);assert.equal(privacy.count,1);
+    assert.equal(manager.browser,null,'Study tools must never create an account automation browser');
+    await ui.evaluate(()=>document.querySelector('.study-research').open=false);await fs.mkdir('test-results',{recursive:true});await fs.writeFile('test-results/study-desktop.png',await ui.screenshot());await ui.command('Emulation.setDeviceMetricsOverride',{width:430,height:850,deviceScaleFactor:1,mobile:true});assert.equal(await ui.evaluate(()=>document.documentElement.scrollWidth>innerWidth+1),false);await fs.writeFile('test-results/study-mobile.png',await ui.screenshot());
+    console.log('PASS local Study UI: PDF import, reranked passages, page citations, explicit verification, persistent answer reuse, token checks, and narrow layout');
+    console.log('PASS manual research privacy: Reject all chosen, Accept all and unrelated Decline buttons untouched; no account automation accessed');
+  }finally{if(ui)await ui.close();if(app)await app.close();else await privacy.close();await new Promise(resolve=>site.close(resolve));assert.equal(path.dirname(dir),path.resolve(os.tmpdir()));assert.ok(path.basename(dir).startsWith('bolt-study-ui-'));await fs.rm(dir,{recursive:true,force:true});}
+})().catch(error=>{console.error(error.stack);process.exitCode=1;});

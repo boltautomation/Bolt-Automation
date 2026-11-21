@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ChatterHigh Quiz Bot</title>
+  <link rel="stylesheet" href="dashboard.css">
+</head>
+<body>
+  <main>
+    <header><div class="mark" aria-hidden="true">C</div><div><p class="eyebrow">YOUR QUIZ COMPANION</p><h1>ChatterHigh Quiz Bot</h1></div><span id="badge">Ready</span></header>
+    <p class="intro">Research, answer, and move through Daily Quiz or Mindful Modules. Keep this tab open while the bot works.</p>
+    <div class="layout">
+      <section class="panel" aria-labelledby="setup-title">
+        <h2 id="setup-title">Set up a run</h2>
+        <form id="settings">
+          <fieldset id="fields">
+            <label for="tab">Signed-in quiz tab</label>
+            <div class="inline"><select id="tab" required aria-label="Signed-in quiz tab"></select><button id="refresh" type="button" class="secondary">Refresh</button></div>
+            <p class="hint">Open a question in either quiz first. <a href="https://chatterhigh.com/en/users/sign_in" target="_blank" rel="noreferrer">Open ChatterHigh ↗</a></p>
+            <label for="apiKey">OpenAI API key</label>
+            <input id="apiKey" type="password" placeholder="sk-…" autocomplete="off" spellcheck="false" required>
+            <p class="hint">Kept in browser session memory. API and web search usage are billed to your API account. Question text, options, and research links are sent to OpenAI.</p>
+            <div class="two"><div><label for="model">Model</label><input id="model" value="gpt-5.4-mini" required spellcheck="false"></div><div><label for="maxQuestions">Question limit</label><input id="maxQuestions" type="number" min="1" max="100" value="20" required></div></div>
+            <label for="confidence">Minimum confidence</label>
+            <div class="inline"><input id="confidence" type="range" min="50" max="100" value="85"><output id="confidenceValue" for="confidence">85%</output></div>
+            <label class="check"><input id="autoSubmit" type="checkbox" checked><span>Submit answers and continue automatically</span></label>
+            <p class="hint">Turn this off to fill the current page for review. Personal reflections and uncertain answers pause the run.</p>
+            <details><summary>Advanced page selectors</summary>
+              <p class="hint">Leave blank for automatic detection. If a quiz uses a different layout, enter CSS selectors that match its controls. A question container must include its prompt and all choices.</p>
+              <label for="questionSelector">Question container</label><input id="questionSelector" placeholder="e.g. .question-card" spellcheck="false">
+              <label for="optionSelector">Answer choices</label><input id="optionSelector" placeholder="e.g. input[type=radio]" spellcheck="false">
+              <label for="submitSelector">Submit button</label><input id="submitSelector" placeholder="e.g. button.quiz-submit" spellcheck="false">
+              <label for="nextSelector">Next button</label><input id="nextSelector" placeholder="e.g. a.next-question" spellcheck="false">
+            </details>
+          </fieldset>
+          <div class="actions"><button id="start" type="submit">Start bot</button><button id="stop" class="danger" type="button" disabled>Stop</button><button id="inspect" class="secondary" type="button">Inspect page</button></div>
+        </form>
+        <button id="forget" class="link-button" type="button">Forget API key</button>
+      </section>
+      <section class="panel activity" aria-labelledby="activity-title">
+        <div class="section-top"><h2 id="activity-title">Run activity</h2><button id="clear" class="link-button" type="button">Clear</button></div>
+        <div id="status" role="status" aria-live="polite">Choose your quiz tab, add an API key, and start.</div>
+        <ol id="log"><li class="empty">Each answer will appear here with its explanation and sources.</li></ol>
+      </section>
+    </div>
+    <footer>Runs only when you press Start. It uses the quiz page’s normal controls. If the page needs your input, finish that step and start again.</footer>
+  </main>
+  <script src="core.js"></script><script src="api.js"></script><script src="runner.js"></script><script src="dashboard.js"></script>
+</body>
+</html>

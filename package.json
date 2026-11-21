@@ -1,0 +1,22 @@
+{
+  "name": "bolt",
+  "version": "2.1.0",
+  "private": true,
+  "description": "Local study workspace with PDF research and verified answers",
+  "engines": {
+    "node": ">=22.13.0 <23 || >=24"
+  },
+  "scripts": {
+    "start": "node app/server.cjs --open",
+    "test": "node --test tests/*.test.cjs",
+    "package:windows": "powershell -NoProfile -ExecutionPolicy Bypass -File tools/Build-Bolt.ps1"
+  },
+  "dependencies": {
+    "pdfjs-dist": "6.5.438"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/boltautomation/Bolt-Automation.git"
+  },
+  "homepage": "https://github.com/boltautomation/Bolt-Automation#readme"
+}

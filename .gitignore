@@ -1,0 +1,12 @@
+.browser-test-profile*/
+test-results/
+*.log
+.env
+.env.*
+node_modules/
+.app-runtime/
+releases/
+tools/runtime/node.exe
+archives/
+*.zip
+*.sha256

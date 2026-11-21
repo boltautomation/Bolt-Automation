@@ -1,0 +1,5 @@
+* text=auto
+*.png binary
+*.exe binary
+*.zip binary
+tools/runtime/LICENSE.txt -whitespace
