@@ -171,7 +171,7 @@
           advancedWithNext = action === "next";
           submitted.add(page.fingerprint);
           count += factualCount;
-          this.onEvent({ type: "submitted", count, survey: surveyOnly, guessed, randomOpinion });
+          this.onEvent({ type: "submitted", count, questionCount:page.questions.filter(question=>!C.surveyAnswer(question)).length, fingerprint:page.fingerprint, survey: surveyOnly, guessed, randomOpinion });
         } else if (page.nextCount === 1 && (count > 0 || submitted.size > 0 || page.feedback)) {
           const key = page.fingerprint;
           if (transitions.has(key)) throw new Error("The Next button did not advance the quiz. Review the quiz tab.");

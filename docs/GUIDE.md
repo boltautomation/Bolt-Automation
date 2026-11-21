@@ -93,6 +93,12 @@ Research reading includes collapsed accordions, tabs, and details sections. Sect
 
 True/False questions with extra **N/A** placeholders are treated as a single True/False choice, including pages styled with checkboxes. The model receives only True and False, with their original page IDs; placeholders cannot be submitted. For these questions it explains the evidence before selecting the answer and explicitly checks negations and qualifiers. Other question types keep their normal choices.
 
+## Run timing
+
+The compact **Elapsed** counter in Run progress measures active time from Start, including setup, research, generation, and your selected delays. It freezes on Stop, completion, or errors and continues on Resume. A new Start or account connection resets it. Refreshing the app window keeps the server-side timer; fully restarting the app resets it.
+
+**Avg. pace** estimates submitted quiz questions per active minute. Survey prompts are excluded; submitted factual questions, guesses, and personal quiz questions are included. It appears after at least one question and 15 seconds. Paused time is excluded, repeated confirmations of the same page are not counted again, and the estimate uses the entire active run, not just the last question. It measures throughput, not correctness.
+
 ## Run settings
 
 **Cross-check factual answers against sources** is on by default in Bolt. A second local AI pass independently answers the same question from its source excerpts without seeing the first answer. Both passes must choose the same options and provide exact source quotes; the second pass must report full support, and the lower of the two confidence estimates is used. Disagreement triggers bounded repair with the specific points of disagreement and one fresh source read. If evidence or agreement remains insufficient, the activity is left for review when guessing is off. The shared legacy extension keeps its existing single-pass default unless explicitly configured.

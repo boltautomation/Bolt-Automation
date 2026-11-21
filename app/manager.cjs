@@ -4,21 +4,26 @@ const {OllamaSolver,DEFAULT_MODEL,ollamaUrl,pullModel}=require('./ollama.cjs');
 const {AccountStore}=require('./accounts.cjs');
 const {ProgressStore}=require('./progress.cjs');
 const {SessionExpiredError,SessionRecoveryError}=require('./session.cjs');
+const {RunMetrics}=require('./run-metrics.cjs');
 require('../extension/core.js');require('../extension/runner.js');
 const C=globalThis.ChatterCore;
 const initial=()=>({phase:'idle',sessionStatus:'unknown',account:'',accountId:'',loginEmail:'',accountWarning:'',modules:[],modulesStatus:'idle',modulesError:'',selectedModuleIds:[],history:[],queue:[],queueIndex:0,events:[],message:'Choose an account and an activity to begin.',count:0,taskCount:0});
 class Manager {
-  constructor({browserFactory=()=>new Browser(),solverFactory=options=>new OllamaSolver(options),signInUrl,accountStore=new AccountStore(),progressStore=new ProgressStore()}={}) {
-    Object.assign(this,{browserFactory,solverFactory,signInUrl,accountStore,progressStore});this.state=initial();this.browser=null;this.controller=null;this.job=null;this.batchOffset=0;
+  constructor({browserFactory=()=>new Browser(),solverFactory=options=>new OllamaSolver(options),signInUrl,accountStore=new AccountStore(),progressStore=new ProgressStore(),runMetrics=new RunMetrics()}={}) {
+    Object.assign(this,{browserFactory,solverFactory,signInUrl,accountStore,progressStore,runMetrics});this.state=initial();this.browser=null;this.controller=null;this.job=null;this.batchOffset=0;
   }
-  snapshot(){return {...this.state,connected:Boolean(this.browser&&this.browser.alive!==false&&this.state.account&&!['expired','verification-required','account-disabled'].includes(this.state.sessionStatus)),browserOpen:Boolean(this.browser&&this.browser.alive!==false),busy:Boolean(this.job||this.closing)};}
-  begin(task){
+  snapshot(){return {...this.state,runTiming:this.runMetrics.snapshot(),connected:Boolean(this.browser&&this.browser.alive!==false&&this.state.account&&!['expired','verification-required','account-disabled'].includes(this.state.sessionStatus)),browserOpen:Boolean(this.browser&&this.browser.alive!==false),busy:Boolean(this.job||this.closing)};}
+  begin(task,{run=false,resume=false}={}){
     if(this.job||this.closing)throw Object.assign(new Error('A task is already running. Stop it before switching accounts or starting another run.'),{status:409});
     this.controller=new AbortController();this.state.error=false;const signal=this.controller.signal;
-    this.job=Promise.resolve().then(()=>task(signal)).catch(error=>{this.state.phase='paused';this.state.error=!signal.aborted;this.state.message=signal.aborted?'Stopped. Your remaining modules are still queued.':error.message;}).finally(()=>{this.job=null;this.controller=null;});
+    if(run)this.runMetrics.start({resume});
+    this.job=Promise.resolve().then(()=>task(signal)).catch(error=>{this.state.phase='paused';this.state.error=!signal.aborted;this.state.message=signal.aborted?'Stopped. Your remaining modules are still queued.':error.message;}).finally(()=>{if(run)this.runMetrics.pause();this.job=null;this.controller=null;});
   }
   event(detail){
     if(detail.type==='submitted'){
+      const submitted=detail.questionCount??Math.max(0,(detail.count||0)-this.state.taskCount);
+      const key=detail.fingerprint?`${this.state.activity?.id||this.state.activity?.moduleId||'daily'}:${detail.fingerprint}`:null;
+      this.runMetrics.submitted(submitted,key);
       this.state.phase='running';this.state.taskCount=detail.count;this.state.count=this.batchOffset+detail.count;
       this.state.message=detail.randomOpinion?'Submitted a random opinion response. Continuing…':detail.survey?'Survey answered. Continuing…':`Submitted ${this.state.count} answer(s).${detail.guessed?' Includes an unverified guess.':''}`;
       const item=this.state.queue[this.state.queueIndex];if(item&&item.total)item.answered=Math.min(item.total,(this.taskStartAnswered||0)+detail.count);
@@ -104,7 +109,7 @@ class Manager {
       this.state.phase='ready';this.state.message='Signed in.';
     }finally{data.password='';if(saved?.secret)saved.secret.password='';}
   }
-  connect(data){this.validateCredentials(data);this.begin(async signal=>{await this.ensureAccount(data,signal);await this.loadModules(signal);this.state.phase='ready';this.state.message='Signed in. Choose the activities you want to run.';});}
+  connect(data){this.validateCredentials(data);this.begin(async signal=>{this.runMetrics.reset();await this.ensureAccount(data,signal);await this.loadModules(signal);this.state.phase='ready';this.state.message='Signed in. Choose the activities you want to run.';});}
   async loadModules(signal){
     this.state.phase='loading-modules';this.state.modulesStatus='loading';this.state.modulesError='';this.state.message='Loading your modules…';
     try{
@@ -206,10 +211,10 @@ class Manager {
       this.state.message=attention?`${tasks.length-attention} activities completed; ${attention} need attention.`:tasks.length===1?'Quiz completed.':`All ${tasks.length} selected activities completed.`;
       this.state.selectedModuleIds=this.state.selectedModuleIds.filter(id=>!this.state.modules.find(module=>module.id===id)?.completed);await this.progressStore.selection(this.state.account,this.state.selectedModuleIds);
       await this.persistQuietly();
-    });
+    },{run:true,resume:Boolean(data.resume)});
   }
-  stop(){this.controller?.abort(new DOMException('Stopped by you.','AbortError'));}
+  stop(){this.runMetrics.pause();this.controller?.abort(new DOMException('Stopped by you.','AbortError'));}
   pull(data){const model=String(data.model||DEFAULT_MODEL),baseUrl=ollamaUrl(data.url);this.begin(async signal=>{this.state.phase='downloading';await pullModel(model,baseUrl,{signal,onProgress:progress=>{this.state.message=`${model}: ${progress.status}${progress.total?` · ${Math.floor((progress.completed||0)/progress.total*100)}%`:''}`;}});this.state.phase=this.state.account?'ready':'idle';this.state.message=`${model} downloaded.`;});}
-  async disconnect(){if(this.closing)return this.closing;this.closing=(async()=>{this.stop();if(this.job)await this.job;await this.persistQuietly();if(this.browser)await this.browser.close();this.browser=null;this.pendingAccount='';this.pausedTasks=[];this.state=initial();})();try{await this.closing;}finally{this.closing=null;}}
+  async disconnect(){if(this.closing)return this.closing;this.closing=(async()=>{this.stop();if(this.job)await this.job;await this.persistQuietly();if(this.browser)await this.browser.close();this.browser=null;this.pendingAccount='';this.pausedTasks=[];this.state=initial();this.runMetrics.reset();})();try{await this.closing;}finally{this.closing=null;}}
 }
 module.exports={Manager};

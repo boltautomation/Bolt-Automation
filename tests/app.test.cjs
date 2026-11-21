@@ -58,6 +58,7 @@ test('incorrect password is attempted once and never marks the account connected
 test('Daily Quiz run automatically signs in, navigates, solves and submits', async () => {
   const { m, browsers } = manager(); m.run(runData()); await m.job;
   assert.equal(m.state.phase, 'complete'); assert.equal(m.state.count, 1);
+  assert.equal(m.snapshot().runTiming.questions,1);assert.equal(m.snapshot().runTiming.running,false);assert.ok(m.snapshot().runTiming.startedAt);
   assert.ok(browsers[0].actions.some(action => action.navigate === 'https://chatterhigh.com/quiz'));
   assert.equal(browsers[0].actions.filter(action => action.action === 'submit').length, 1);
   assert.ok(!JSON.stringify(m.snapshot()).includes('fake-api-key'));

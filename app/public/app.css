@@ -146,6 +146,7 @@ select:not(:disabled):hover{border-color:#ffffff40}select:focus-visible{border-c
 @media(forced-colors:active){.range-control input[type=range]{appearance:auto;-webkit-appearance:auto}.range-control input[type=range]::-webkit-slider-thumb{appearance:auto;-webkit-appearance:auto;background:ButtonText}.range-track{display:none}.modes:before{background:Highlight}.modes input:checked+span{color:HighlightText}}
 
 /* Fade in a static brand tint and dim the workspace when the rail expands. */
+.run-timing{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:6px 14px;padding-top:11px}.run-timing>div{display:flex;align-items:baseline;gap:6px;white-space:nowrap}.run-timing span{font-size:9px;color:#999}.run-timing output{font-size:12px;font-weight:550;line-height:1.5;color:#d7d7d7;font-variant-numeric:tabular-nums;letter-spacing:.15px}
 .sidebar{isolation:isolate}
 .sidebar::before{content:"";position:absolute;inset:0;z-index:-1;pointer-events:none;background:linear-gradient(100deg,#dde33a4d,#a9cc404d);mask-image:linear-gradient(to bottom,transparent 22%,#0002 48%,#000 100%);-webkit-mask-image:linear-gradient(to bottom,transparent 22%,#0002 48%,#000 100%);opacity:0;transition:opacity 240ms ease}
 .sidebar[data-expanded=true]::before{opacity:1}
