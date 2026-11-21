@@ -4,6 +4,8 @@
 
 A Windows workspace for personal study, PDF research, and authorized practice, powered by a local AI model.
 
+The promotional website lives in [`website/`](website/README.md). Preview it with `node tools/preview-website.cjs`; it is a separate static site, not the desktop app.
+
 ## Open Bolt
 
 1. Download the **[Windows package](https://github.com/boltautomation/Bolt-Automation/releases/latest)** and extract it completely. Keep its folders together.
@@ -32,6 +34,7 @@ Bolt is independent software and is not affiliated with or endorsed by connected
 | `docs/` | [Full guide](docs/GUIDE.md), including settings, privacy, and limitations. |
 | `tools/` | Launcher, package builder, and bundled runtime for this development copy. |
 | `app/` | App source and interface. |
+| `website/` | Responsive promo site and its Vercel configuration. |
 | `extension/` | Shared quiz engine and the earlier browser-extension source. |
 | `tests/` | Development checks. |
 | `archives/` | Older logo backups. |

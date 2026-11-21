@@ -10,3 +10,4 @@ tools/runtime/node.exe
 archives/
 *.zip
 *.sha256
+.vercel/

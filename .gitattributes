@@ -3,3 +3,4 @@
 *.exe binary
 *.zip binary
 tools/runtime/LICENSE.txt -whitespace
+website/assets/Manrope-OFL.txt -whitespace
