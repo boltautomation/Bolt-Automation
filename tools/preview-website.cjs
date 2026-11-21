@@ -4,6 +4,7 @@ const types={'.html':'text/html; charset=utf-8','.css':'text/css; charset=utf-8'
 const server=http.createServer(async(request,response)=>{
   try{
     const pathname=decodeURIComponent(new URL(request.url,'http://localhost').pathname);
+    if(pathname==='/api/downloads'){await require('../website/api/downloads.js')(request,response);return;}
     if(pathname.split('/').some(part=>part.startsWith('.')))throw Error('Not found');
     const page=pathname==='/'?'/index.html':path.extname(pathname)?pathname:pathname+'.html';
     const file=path.resolve(root,'.'+page);

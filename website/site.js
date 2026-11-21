@@ -13,6 +13,16 @@ function updatePace(){paceValue.value=Number(pace.value)===0?'No pause':pace.val
 pace.addEventListener('input',updatePace);updatePace();
 document.getElementById('year').textContent=String(new Date().getFullYear());
 
+const downloadCount=document.getElementById('download-count');
+if(downloadCount)fetch('/api/downloads',{signal:AbortSignal.timeout(12000)})
+  .then(response=>{if(!response.ok)throw new Error('Unavailable');return response.json();})
+  .then(stats=>{
+    if(!Number.isSafeInteger(stats.total)||stats.total<0)throw new Error('Invalid total');
+    downloadCount.textContent=new Intl.NumberFormat().format(stats.total)+' downloads';
+    downloadCount.title='GitHub release package downloads across all versions. Cached for up to 15 minutes. Last checked: '+new Date(stats.asOf).toLocaleString();
+  })
+  .catch(()=>{downloadCount.textContent='Download count unavailable';});
+
 // One animation frame loop per visible card, only while its tilt is settling.
 const hoverMotion = matchMedia('(hover: hover) and (pointer: fine) and (prefers-reduced-motion: no-preference)');
 document.querySelectorAll('[data-parallax]').forEach(surface => {
