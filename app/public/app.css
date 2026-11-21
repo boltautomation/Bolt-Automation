@@ -144,3 +144,18 @@ select:not(:disabled):hover{border-color:#ffffff40}select:focus-visible{border-c
 }
 @media(prefers-reduced-motion:reduce){button,select,.modes:before,.modes span,.range-fill,.range-thumb{transition:none!important}select::picker(select),select::picker-icon,select option{transition:none!important}}
 @media(forced-colors:active){.range-control input[type=range]{appearance:auto;-webkit-appearance:auto}.range-control input[type=range]::-webkit-slider-thumb{appearance:auto;-webkit-appearance:auto;background:ButtonText}.range-track{display:none}.modes:before{background:Highlight}.modes input:checked+span{color:HighlightText}}
+
+/* Fade in a static brand tint and dim the workspace when the rail expands. */
+.sidebar{isolation:isolate}
+.sidebar::before{content:"";position:absolute;inset:0;z-index:-1;pointer-events:none;background:linear-gradient(100deg,#dde33a4d,#a9cc404d);mask-image:linear-gradient(to bottom,transparent 22%,#0002 48%,#000 100%);-webkit-mask-image:linear-gradient(to bottom,transparent 22%,#0002 48%,#000 100%);opacity:0;transition:opacity 240ms ease}
+.sidebar[data-expanded=true]::before{opacity:1}
+.sidebar[data-expanded=true] .sidebar-bottom label,.sidebar[data-expanded=true] .sidebar-bottom p,.sidebar[data-expanded=true] .sidebar-meta,.sidebar[data-expanded=true] .sidebar-bottom .text-button{color:#dcded1}
+.sidebar[data-expanded=true] .sidebar-bottom{border-top-color:#ffffff26}
+.sidebar[data-expanded=true] .sidebar-bottom select{background:#161811d9;color:#eceee4;border-color:#ffffff30}
+.workspace{position:relative;isolation:isolate}
+.workspace::after{content:"";position:fixed;inset:0;z-index:20;background:#000;opacity:0;pointer-events:none;transition:opacity 220ms ease}
+.app-shell:has(.sidebar[data-expanded=true]) .workspace::after{opacity:.42}
+body:has(#quick-tour[open]) .sidebar::before,body:has(#quick-tour[open]) .workspace::after{opacity:0}
+@media(prefers-reduced-motion:reduce){.sidebar::before,.workspace::after{transition:none}}
+@media(prefers-contrast:more),(prefers-reduced-transparency:reduce){.sidebar::before{display:none}}
+@media(forced-colors:active){.sidebar::before,.workspace::after{display:none}.sidebar[data-expanded=true] .sidebar-bottom label,.sidebar[data-expanded=true] .sidebar-bottom p,.sidebar[data-expanded=true] .sidebar-meta,.sidebar[data-expanded=true] .sidebar-bottom .text-button{color:CanvasText}.sidebar[data-expanded=true] .sidebar-bottom select{background:Canvas;color:CanvasText;border-color:ButtonBorder}}

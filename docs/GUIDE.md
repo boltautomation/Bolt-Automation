@@ -48,7 +48,7 @@ Study text, excerpts, and verified answers are stored locally in `.app-runtime/s
 
 The sidebar separates **Auto Bot**, **Accounts**, **History**, and **Settings**. **History** shows completed activities and those needing attention. Module progress is also refreshed from the connected site when signing in or clicking Refresh. Accounts run one at a time in isolated browser sessions.
 
-The sidebar normally shows icons only. Hover to slide it open; moving away collapses it again. Keyboard focus reveals the labels too. On touchscreens, tap the bolt logo to open it and tap outside to close it. Expansion overlays the page so the content stays in place.
+The sidebar normally shows icons only. Hover to slide it open; moving away collapses it again. Keyboard focus reveals the labels too. On touchscreens, tap the bolt logo to open it and tap outside to close it. Expansion overlays the page so the content stays in place. While open, a logo-colored gradient fades into the bottom of the dark sidebar and the workspace behind it dims. Hovering away or closing the sidebar fades both effects out. The overlay does not block workspace clicks, and reduced-motion and high-contrast settings are respected.
 
 An existing account can be saved without knowing its password using **Save current signed-in account**. That saves its encrypted session; use **Add password** on the profile to enable automatic re-login after the session expires. **Remove** deletes a saved profile without deleting the account on the connected site.
 
