@@ -46,8 +46,9 @@ h1,h2,h3,p {margin-top:0}
 .wrap {width:min(1120px,calc(100% - 80px));margin-inline:auto}
 .skip-link {position:fixed;z-index:99;top:12px;left:12px;transform:translateY(-160%);padding:12px 18px;background:#ececec;color:#141414;border-radius:8px}
 .skip-link:focus {transform:none}
-.site-header {height:88px;position:sticky;top:0;z-index:30;background:transparent;backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px)}
-.header-inner {height:100%;display:flex;align-items:center;justify-content:space-between;gap:28px;border-bottom:1px solid var(--line);position:relative}
+.site-header {height:88px;position:sticky;top:0;z-index:30;isolation:isolate;background:transparent}
+.site-header:before {content:"";position:absolute;inset:0 0 -24px;z-index:-1;pointer-events:none;background:linear-gradient(105deg,#dde33a30,#a9cc402b);mask-image:linear-gradient(to bottom,#000,transparent);-webkit-mask-image:linear-gradient(to bottom,#000,transparent)}
+.header-inner {height:100%;display:flex;align-items:center;justify-content:space-between;gap:28px;position:relative}
 .brand {display:inline-flex;align-items:center;gap:9px;flex-shrink:0}
 .brand img {width:37px;height:34px}
 .brand span {font:italic 800 28px/1 "Bahnschrift",Manrope,sans-serif;letter-spacing:-.8px;padding-right:3px;background:linear-gradient(90deg,#dde33a,#a9cc40);background-clip:text;-webkit-background-clip:text;color:transparent}
