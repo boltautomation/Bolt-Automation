@@ -1,6 +1,6 @@
 # Bolt — educational study workspace
 
-Bolt is a Windows app for personal study, research, and authorized practice. Its local **PDF and verified-answer tools** help you read documents, find relevant passages, and keep answers you explicitly verify. It uses a downloaded **local Ollama model**, with **no OpenAI/Claude key or paid AI API**. The ZIP includes the PDF-reading dependencies. Account and activity records remain separate from these study tools.
+Bolt is a Windows and macOS app for personal study, research, and authorized practice. Mac users: see [macOS setup](#macos-setup) for the correct launcher, downloads, and Keychain details. Its local **PDF and verified-answer tools** help you read documents, find relevant passages, and keep answers you explicitly verify. It uses a downloaded **local Ollama model**, with **no OpenAI/Claude key or paid AI API**. The ZIP includes the PDF-reading dependencies. Account and activity records remain separate from these study tools.
 
 Optional browser automation can fill and submit activity answers, including randomized responses and unverified guesses when enabled. Those capabilities do not imply permission to use them on a particular activity or website.
 
@@ -125,7 +125,7 @@ Uncheck **Submit answers automatically** to fill the current page for review. Pa
 
 ## Account handling
 
-Saved passwords and sessions are encrypted with **Windows DPAPI, CurrentUser scope**, in `.app-runtime/accounts.json`. They can be decrypted only in the same Windows user context. Secrets travel through the encryption helper's stdin, never its command-line arguments, and plaintext passwords/cookies are not written to files, logs, browser local storage, or the app's state API. Uncheck **Save this login on this PC** for a one-time login. See [Microsoft's data-protection documentation](https://learn.microsoft.com/en-us/dotnet/api/system.security.cryptography.dataprotectionscope).
+On Windows, saved passwords and sessions are encrypted with **Windows DPAPI, CurrentUser scope**, in `.app-runtime/accounts.json`. They can be decrypted only in the same Windows user context. Secrets travel through the encryption helper's stdin, never its command-line arguments, and plaintext passwords/cookies are not written to files, logs, browser local storage, or the app's state API. Uncheck **Save this login on this PC** for a one-time login. See [Microsoft's data-protection documentation](https://learn.microsoft.com/en-us/dotnet/api/system.security.cryptography.dataprotectionscope).
 
 Each account uses an isolated browser process and off-the-record context. Switching accounts refreshes its saved session, closes the previous browser, and removes the temporary browser profile. The app does not use your everyday browser cookies. The app window has its own profile for nonsecret preferences.
 
@@ -184,3 +184,13 @@ Most tests use simulated local-model responses and fake credentials. `check-publ
 Source: `app/server.cjs` serves the app; `manager.cjs` manages accounts and runs; `browser.cjs` drives the browser; `activities.cjs` discovers activities; `ollama.cjs` runs local inference; `sources.cjs` reads research pages; `app/public/` contains the interface. The original quiz engine is reused from `extension/core.js`, `runner.js`, and `content.js`. The app does not install or load the extension. Its earlier implementation remains separately in `extension/`.
 
 The local inference integration follows [Ollama's Chat API](https://docs.ollama.com/api/chat), [model-list API](https://docs.ollama.com/api/tags), and [structured-output documentation](https://docs.ollama.com/capabilities/structured-outputs).
+
+## macOS setup
+
+Choose **Bolt-macOS-arm64.zip** for Apple Silicon or **Bolt-macOS-x64.zip** for Intel, extract the full folder, and open **Start Bolt.command**. macOS 14 or newer, Chrome or Brave, and [Ollama for Mac](https://ollama.com/download/mac) are required. Ollama supports CPU/GPU inference on Apple Silicon and CPU inference on Intel Macs; Intel generation can be slower. See [Ollama’s Mac requirements](https://docs.ollama.com/macos). Runtime and PDF tools are bundled. The launcher is unsigned/not notarized; macOS may request approval through Privacy & Security. Verify the package checksum before allowing it, and do not disable Gatekeeper globally.
+
+The launcher starts an installed Ollama service and opens the same local desktop interface. It discovers Chrome/Brave in /Applications and ~/Applications. `BOLT_BROWSER` can specify a full browser executable path; `CHATTERHIGH_BROWSER` remains supported. `BOLT_PORT` or the legacy `CHATTERHIGH_PORT` changes the local port. No Accessibility permission is needed for the cursor inside Chrome.
+
+On macOS, saved passwords and sessions use AES-256-GCM with a random 256-bit key stored in the login Keychain under **com.boltautomation.Bolt.local-key.v1**. The key is supplied to the native Keychain tool through stdin, never command arguments. Unlock the Keychain and approve access if requested. Failure stops saving/opening credentials; there is no plaintext fallback. The same Keychain is needed to reopen saved logins after updating. Windows DPAPI records cannot be decrypted on a Mac; add the account again.
+
+For source development use Node.js 24 LTS and `npm ci`, then `/bin/bash tools/Start-Bolt.sh --check` to check prerequisites. Build on the matching architecture using `npm run package:macos`. `node tests/mac-package-smoke.cjs` tests a packaged launcher without Node on PATH, real Keychain protection, PDF import, and headless Chrome. Run these only against test data; the smoke test creates and removes its own temporary Keychain item.

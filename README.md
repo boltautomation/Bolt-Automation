@@ -2,7 +2,7 @@
 
 <p align="center"><img src="app/public/assets/bolt-transparent.png" alt="Bolt" width="144"></p>
 
-A Windows workspace for personal study, PDF research, and authorized practice, powered by a local AI model.
+A Windows and macOS workspace for personal study, PDF research, and authorized practice, powered by a local AI model.
 
 Visit the **[Bolt website](https://bolt-automation.vercel.app)** for a product overview, downloads, [app usage terms](https://bolt-automation.vercel.app/usage-terms), and [website terms](https://bolt-automation.vercel.app/site-terms).
 
@@ -10,11 +10,11 @@ The promotional website lives in [`website/`](website/README.md). Preview it wit
 
 ## Open Bolt
 
-1. Download the **[Windows package](https://github.com/boltautomation/Bolt-Automation/releases/latest)** and extract it completely. Keep its folders together.
-2. Open **Start Bolt.cmd** inside the extracted **Bolt** folder. You can also use the launcher beside this README for the development copy.
-3. Install Chrome or Brave if needed. Follow **Finish setup** in the app to install [Ollama for Windows](https://ollama.com/download/windows) once, then use **Download model** in the app. The default model download is about 2.5 GB.
+1. Download the [latest release](https://github.com/boltautomation/Bolt-Automation/releases/latest): **Bolt.zip** for Windows x64, **Bolt-macOS-arm64.zip** for Apple Silicon, or **Bolt-macOS-x64.zip** for Intel Macs. Extract the entire folder.
+2. Open **Start Bolt.cmd** on Windows or **Start Bolt.command** on macOS inside the extracted **Bolt** folder. Mac builds require macOS 14 or newer. On a Mac, allow the launcher through System Settings > Privacy & Security if macOS requests approval; it is not notarized.
+3. Install Chrome or Brave if needed. Follow **Finish setup** in the app to install [Ollama](https://ollama.com/download) once, then use **Download model** in the app. The default model download is about 2.5 GB.
 
-The Windows x64 package includes Node.js and the PDF dependencies. No terminal commands, Node installation, or npm setup are needed to run that package. Chrome/Brave, Ollama, and the AI model are separate. An installed Ollama service starts automatically when possible. Internet access is needed for initial downloads and online research; local PDFs and downloaded models stay on your computer.
+All three packages include the matching Node.js runtime and PDF dependencies. Mac builds are tested on native Apple Silicon and Intel runners. No terminal commands, Node installation, or npm setup are needed to run that package. Chrome/Brave, Ollama, and the AI model are separate. An installed Ollama service starts automatically when possible. Internet access is needed for initial downloads and online research; local PDFs and downloaded models stay on your computer.
 
 ## Accuracy and review
 
@@ -48,3 +48,9 @@ For updates, extract into a new folder and keep your existing copy until you hav
 ## Development
 
 Run `npm test` for unit tests. Build a fresh Windows x64 package with `powershell -NoProfile -ExecutionPolicy Bypass -File tools/Build-Bolt.ps1`. The builder uses the bundled runtime and installed dependencies; see [the full guide](docs/GUIDE.md) for source-checkout setup and browser tests.
+
+## macOS development and packaging
+
+From a Mac source checkout, install Node.js 24 LTS, run `npm ci`, then open `Start Bolt.command`. `npm run package:macos` builds a package for the current Mac architecture. The manually dispatched **Build macOS packages** GitHub Actions workflow tests both architectures and uploads ZIPs and checksums. The Mac launcher uses the bundled runtime even when Node is not installed globally.
+
+Mac account data is encrypted with AES-256-GCM using a key stored in the current user’s login Keychain. Windows continues using DPAPI. Keep the private data folder and the same OS user/Keychain when updating. Do not transfer saved-login files between operating systems.
