@@ -14,4 +14,4 @@ Separate app usage and website terms are linked in the footer and beside the dow
 
 Fonts are self-hosted; their Open Font License is in **assets/Manrope-OFL.txt**. The logo is the supplied Bolt asset. Preview locally with **node tools/preview-website.cjs** from the repository root.
 
-The download counter sums ZIP asset download counts across published GitHub releases (Windows and both Mac architectures), excluding checksum files. Results are cached at the CDN for 15 minutes; an unavailable total is shown honestly. The navbar logo is larger and makes one clockwise turn per hover, respecting reduced-motion settings.
+The download counter sums ZIP asset download counts across published GitHub releases (Windows and both Mac architectures), excluding checksum files. Results are cached at the CDN for 15 minutes; an unavailable total is shown honestly. The navbar logo is larger and makes one complete clockwise turn per hover, continuing after pointer exit. Rapid re-entry does not restart an active turn. Reduced-motion preferences are respected on all pages.

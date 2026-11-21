@@ -7,7 +7,7 @@ const {promisify}=require('node:util');
 const {testPdf}=require('./pdf-fixture.cjs');
 const execute=promisify(execFile);
 (async()=>{
-  const project=path.resolve(__dirname,'..'),zip=path.join(project,'releases/Bolt.zip');
+  const project=path.resolve(__dirname,'..'),zip=path.join(project,'releases',require('../package.json').artifacts.windows);
   const temporary=path.join(project,'test-results',`package smoke ${randomUUID()}`);
   const powershell=path.join(process.env.SystemRoot,'System32/WindowsPowerShell/v1.0/powershell.exe');
   await fs.mkdir(temporary,{recursive:true});
@@ -17,6 +17,7 @@ const execute=promisify(execFile);
     await execute(powershell,['-NoProfile','-NonInteractive','-Command',"Add-Type -AssemblyName System.IO.Compression.FileSystem; [IO.Compression.ZipFile]::ExtractToDirectory($env:BOLT_TEST_ZIP, $env:BOLT_TEST_OUT)"],{windowsHide:true,env:{...process.env,BOLT_TEST_ZIP:zip,BOLT_TEST_OUT:temporary},timeout:60000});
     const bundle=path.join(temporary,'Bolt'),resources=path.join(bundle,'resources');
     const manifest=JSON.parse((await fs.readFile(path.join(bundle,'package-manifest.json'),'utf8')).replace(/^\uFEFF/,''));
+    assert.equal(manifest.versionName,require('../package.json').versionName);
     for(const file of manifest.files){
       assert.ok(!path.isAbsolute(file.path)&&!file.path.split(/[\\/]/).includes('..'));
       assert.ok(!/(^|\/)(?:\.app-runtime|\.browser-test-profile|tests|test-results|archives|previous)(\/|$)|\.(?:log|zip)$/.test(file.path),file.path);
@@ -32,7 +33,7 @@ const execute=promisify(execFile);
       const assert=require('node:assert/strict'),path=require('node:path'),fs=require('node:fs/promises');
       (async()=>{const root=process.argv[1],{createApp}=require(path.join(root,'app/server.cjs'));const app=await createApp({port:0});try{
         const health=await(await fetch(app.origin+'/health')).json();assert.ok(health.app.endsWith('local-app'));
-        const html=await(await fetch(app.origin)).text();assert.match(html,/id="setup-guide"/);assert.match(html,/id="intended-use"/);
+        const html=await(await fetch(app.origin)).text();assert.match(html,/id="setup-guide"/);assert.match(html,/id="intended-use"/);assert.ok(html.includes('Version '+require(path.join(root,'package.json')).versionName));assert.ok(!html.includes('__APP_VERSION__'));
         for(const route of ['/core.js','/client.js','/app.css','/assets/bolt.png'])assert.equal((await fetch(app.origin+route)).status,200,route);
         const state=await(await fetch(app.origin+'/api/state',{headers:{'X-App-Token':app.token}})).json();assert.deepEqual(state.accounts,[]);assert.deepEqual(state.queue,[]);
         const response=await fetch(app.origin+'/api/study/import?name=practice.pdf',{method:'POST',headers:{'X-App-Token':app.token,'Content-Type':'application/pdf'},body:await fs.readFile(process.argv[2])});

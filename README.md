@@ -1,4 +1,4 @@
-# Bolt
+# Bolt · v1 - oak
 
 <p align="center"><img src="app/public/assets/bolt-transparent.png" alt="Bolt" width="144"></p>
 
@@ -10,7 +10,7 @@ The promotional website lives in [`website/`](website/README.md). Preview it wit
 
 ## Open Bolt
 
-1. Download the [latest release](https://github.com/boltautomation/Bolt-Automation/releases/latest): **Bolt.zip** for Windows x64, **Bolt-macOS-arm64.zip** for Apple Silicon, or **Bolt-macOS-x64.zip** for Intel Macs. Extract the entire folder.
+1. Download the [latest release](https://github.com/boltautomation/Bolt-Automation/releases/latest): **Bolt-v1-oak-Windows-x64.zip** for Windows x64, **Bolt-v1-oak-macOS-arm64.zip** for Apple Silicon, or **Bolt-v1-oak-macOS-x64.zip** for Intel Macs. Extract the entire folder.
 2. Open **Start Bolt.cmd** on Windows or **Start Bolt.command** on macOS inside the extracted **Bolt** folder. Mac builds require macOS 14 or newer. On a Mac, allow the launcher through System Settings > Privacy & Security if macOS requests approval; it is not notarized.
 3. Install Chrome or Brave if needed. Follow **Finish setup** in the app to install [Ollama](https://ollama.com/download) once, then use **Download model** in the app. The default model download is about 2.5 GB.
 

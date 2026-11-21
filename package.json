@@ -1,6 +1,6 @@
 {
   "name": "bolt",
-  "version": "2.2.0",
+  "version": "1.0.0",
   "private": true,
   "description": "Local study workspace with PDF research and verified answers",
   "engines": {
@@ -19,5 +19,12 @@
     "type": "git",
     "url": "git+https://github.com/boltautomation/Bolt-Automation.git"
   },
-  "homepage": "https://github.com/boltautomation/Bolt-Automation#readme"
+  "homepage": "https://github.com/boltautomation/Bolt-Automation#readme",
+  "versionName": "v1 - oak",
+  "releaseTag": "v1-oak",
+  "artifacts": {
+    "windows": "Bolt-v1-oak-Windows-x64.zip",
+    "arm64": "Bolt-v1-oak-macOS-arm64.zip",
+    "x64": "Bolt-v1-oak-macOS-x64.zip"
+  }
 }

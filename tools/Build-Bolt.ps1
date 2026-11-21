@@ -16,7 +16,9 @@ New-Item -ItemType Directory -Path $outputRoot -Force | Out-Null
 $stage = Join-Path $outputRoot ('.bolt-build-' + [guid]::NewGuid().ToString('N'))
 $bundle = Join-Path $stage 'Bolt'
 $resources = Join-Path $bundle 'resources'
-$zipPath = Join-Path $outputRoot 'Bolt.zip'
+$packageMetadata = Get-Content -LiteralPath (Join-Path $projectRoot 'package.json') -Raw | ConvertFrom-Json
+$zipName = $packageMetadata.artifacts.windows
+$zipPath = Join-Path $outputRoot $zipName
 $zipTemp = Join-Path $outputRoot ('.bolt-' + [guid]::NewGuid().ToString('N') + '.zip')
 try {
     foreach ($dir in @('app\public\assets', 'extension', 'runtime', 'node_modules')) { New-Item -ItemType Directory -Path (Join-Path $resources $dir) -Force | Out-Null }
@@ -54,16 +56,17 @@ Bolt defaults to two source-based answer checks and guesses off. Unsupported or 
 
 **docs/GUIDE.md** contains the full guide and disclaimer. **resources/** contains the app and runtime. Private accounts, progress, and PDF data are created in **resources/.app-runtime/** on first use; no personal data is bundled. Keep your current folder and saved data when updating, and never share that private folder. Saved logins work only with the same Windows user.
 '@
+    $packageReadme = $packageReadme.Replace('# Bolt - ready to run', ('# Bolt - ' + $packageMetadata.versionName))
     Set-Content -LiteralPath (Join-Path $bundle 'README.md') -Value $packageReadme -Encoding UTF8
     $files = @(Get-ChildItem -LiteralPath $bundle -File -Recurse | Sort-Object FullName | ForEach-Object {
         [ordered]@{ path = $_.FullName.Substring($bundle.Length + 1).Replace('\','/'); bytes = $_.Length; sha256 = (Get-FileHash -LiteralPath $_.FullName -Algorithm SHA256).Hash.ToLowerInvariant() }
     })
-    [ordered]@{ product='Bolt'; platform='win32'; architecture=$architecture; node=$runtimeVersion; builtAt=[DateTime]::UtcNow.ToString('o'); files=$files } | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath (Join-Path $bundle 'package-manifest.json') -Encoding UTF8
+    [ordered]@{ product='Bolt'; version=$packageMetadata.version; versionName=$packageMetadata.versionName; platform='win32'; architecture=$architecture; node=$runtimeVersion; builtAt=[DateTime]::UtcNow.ToString('o'); files=$files } | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath (Join-Path $bundle 'package-manifest.json') -Encoding UTF8
     Add-Type -AssemblyName System.IO.Compression.FileSystem
     [IO.Compression.ZipFile]::CreateFromDirectory($stage, $zipTemp, [IO.Compression.CompressionLevel]::Optimal, $false)
     Move-Item -LiteralPath $zipTemp -Destination $zipPath -Force
     $checksum = (Get-FileHash -LiteralPath $zipPath -Algorithm SHA256).Hash.ToLowerInvariant()
-    Set-Content -LiteralPath ($zipPath + '.sha256') -Value "$checksum  Bolt.zip" -Encoding ASCII
+    Set-Content -LiteralPath ($zipPath + '.sha256') -Value "$checksum  $zipName" -Encoding ASCII
     Write-Output "Built $zipPath ($($files.Count) files, bundled Node $runtimeVersion)."
 } finally {
     # Delete only the generated staging paths inside this build's output directory.

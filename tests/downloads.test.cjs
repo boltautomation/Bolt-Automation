@@ -10,3 +10,13 @@ test('download counter fails honestly on upstream errors and malformed counts',a
   await assert.rejects(getDownloadStats(async()=>({ok:true,headers:new Headers(),json:async()=>[{assets:[{name:'Bolt.zip',download_count:-1}]}]})),/Invalid download/);
   const stats=await getDownloadStats(async()=>({ok:true,headers:new Headers(),json:async()=>[]}));assert.equal(stats.total,0);
 });
+test('download totals retain legacy packages and include the Oak versioned filenames',async()=>{
+  const stats=await getDownloadStats(async()=>({ok:true,headers:new Headers(),json:async()=>[{assets:[
+    {name:'Bolt.zip',download_count:8},
+    {name:'Bolt-v1-oak-Windows-x64.zip',download_count:2},
+    {name:'Bolt-v1-oak-macOS-arm64.zip',download_count:3},
+    {name:'Bolt-v1-oak-macOS-x64.zip',download_count:4},
+    {name:'Bolt-v1-oak-macOS-x64.zip.sha256',download_count:99}
+  ]}]}));
+  assert.equal(stats.total,17);assert.deepEqual(stats.platforms,{windows:10,appleSilicon:3,intelMac:4});
+});

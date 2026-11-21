@@ -52,8 +52,6 @@ h1,h2,h3,p {margin-top:0}
 .brand {display:inline-flex;align-items:center;gap:9px;flex-shrink:0}
 .brand img {width:37px;height:34px}
 .site-header .brand img {width:48px;height:44px;transform-origin:center}
-.site-header .brand:hover img {animation:bolt-logo-spin 750ms cubic-bezier(.22,.61,.36,1) 1}
-@keyframes bolt-logo-spin {from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
 .brand span {font:italic 800 28px/1 "Bahnschrift",Manrope,sans-serif;letter-spacing:-.8px;padding-right:3px;background:linear-gradient(90deg,#dde33a,#a9cc40);background-clip:text;-webkit-background-clip:text;color:transparent}
 .nav-links {display:flex;align-items:center;gap:30px;margin-left:auto;margin-right:24px;font-size:14px;color:#a8a8a8}
 .nav-links a,.text-link,.footer-legal a {transition:color 160ms}

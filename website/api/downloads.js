@@ -9,7 +9,8 @@ async function getDownloadStats(fetcher=fetch) {
     for(const release of releases){
       if(release.draft)continue;
       for(const asset of release.assets||[]){
-        const platform={'Bolt.zip':'windows','Bolt-macOS-arm64.zip':'appleSilicon','Bolt-macOS-x64.zip':'intelMac'}[asset.name];
+        const versioned=/^Bolt-v[a-z0-9][a-z0-9.-]*-(Windows-x64|macOS-arm64|macOS-x64)\.zip$/i.exec(asset.name);
+        const platform={'Bolt.zip':'windows','Bolt-macOS-arm64.zip':'appleSilicon','Bolt-macOS-x64.zip':'intelMac'}[asset.name]||({'Windows-x64':'windows','macOS-arm64':'appleSilicon','macOS-x64':'intelMac'}[versioned?.[1]]);
         if(!platform)continue;
         if(!Number.isSafeInteger(asset.download_count)||asset.download_count<0)throw new Error('Invalid download count.');
         platforms[platform]+=asset.download_count;
