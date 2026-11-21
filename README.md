@@ -4,6 +4,8 @@
 
 A Windows workspace for personal study, PDF research, and authorized practice, powered by a local AI model.
 
+Visit the **[Bolt website](https://bolt-automation.vercel.app)** for a product overview, downloads, [app usage terms](https://bolt-automation.vercel.app/usage-terms), and [website terms](https://bolt-automation.vercel.app/site-terms).
+
 The promotional website lives in [`website/`](website/README.md). Preview it with `node tools/preview-website.cjs`; it is a separate static site, not the desktop app.
 
 ## Open Bolt
