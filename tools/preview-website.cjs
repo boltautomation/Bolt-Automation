@@ -5,7 +5,8 @@ const server=http.createServer(async(request,response)=>{
   try{
     const pathname=decodeURIComponent(new URL(request.url,'http://localhost').pathname);
     if(pathname.split('/').some(part=>part.startsWith('.')))throw Error('Not found');
-    const file=path.resolve(root,'.'+(pathname==='/'?'/index.html':pathname));
+    const page=pathname==='/'?'/index.html':path.extname(pathname)?pathname:pathname+'.html';
+    const file=path.resolve(root,'.'+page);
     if(!file.startsWith(root+path.sep))throw Error('Not found');
     const data=await fs.readFile(file);response.writeHead(200,{'Content-Type':types[path.extname(file)]||'application/octet-stream','Cache-Control':'no-store','X-Content-Type-Options':'nosniff'});response.end(data);
   }catch{response.writeHead(404);response.end('Not found');}

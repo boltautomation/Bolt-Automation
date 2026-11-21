@@ -2243,3 +2243,55 @@ h2 {
 .local-art {
   overflow:clip
 }
+
+/* The supplied app screenshot stays intact; only its presentation tilts. */
+.screenshot-window,.screenshot-window:hover {
+  transform:perspective(1200px) rotateX(var(--tilt-x,0deg)) rotateY(var(--tilt-y,0deg));
+  transition:border-color 200ms,box-shadow 200ms;
+  border-color:#d5df682b;
+  box-shadow:0 28px 75px #0007,inset 0 1px 0 #ffffff12;
+}
+.workspace-shot {
+  display:block;
+  width:100%;
+  height:auto;
+  background:#141414;
+}
+.preview-caption {line-height:1.8}
+.preview-caption a,.download-terms a,.legal-page a {
+  color:#c7d983;
+  text-decoration:underline;
+  text-underline-offset:4px;
+}
+.hero-product .floating-label {bottom:52px;right:-10px}
+.download-terms {font-size:12px!important;line-height:1.9;margin:16px 0 0!important;color:#9fae88!important;max-width:350px}
+.footer-legal {display:flex;gap:24px;flex-wrap:wrap;font-size:14px}
+.footer-legal a:hover {color:#d4e343}
+.legal-page {max-width:920px;padding-top:76px;padding-bottom:90px}
+.legal-page h1 {font-size:clamp(38px,5vw,64px);letter-spacing:-2.5px;margin-bottom:18px}
+.legal-date {font-size:14px;color:#909a82;line-height:1.8;margin-bottom:30px}
+.legal-summary {padding:25px 28px;border:1px solid #cbd74c25;border-radius:14px;background:linear-gradient(135deg,#c9da3910,#9eb83e04);margin:30px 0}
+.legal-summary strong {font-size:17px;color:#d8e7a9}
+.legal-page p,.legal-page li {font-size:16px;line-height:1.95;color:#adb4a1}
+.legal-summary p {margin:10px 0 0}
+.legal-contents {display:flex;flex-wrap:wrap;gap:12px 24px;font-size:14px;padding-bottom:34px;border-bottom:1px solid #ffffff12}
+.legal-page section {padding-top:36px;scroll-margin-top:20px}
+.legal-page section h2 {font-size:25px;line-height:1.4;letter-spacing:-.7px;margin-bottom:18px}
+.legal-page li {margin-bottom:11px;padding-left:6px}
+.legal-page ul {padding-left:23px}
+.legal-page section p:last-child {margin-bottom:0}
+@media(max-width:640px) {
+  .screenshot-window,.screenshot-window:hover {transform:none}
+  .workspace-shot {min-height:0}
+  .preview-caption {font-size:12px}
+  .legal-page {padding-top:42px;padding-bottom:60px}
+  .legal-page h1 {letter-spacing:-1.5px}
+  .legal-summary {padding:21px}
+  .legal-page section h2 {font-size:23px}
+  .footer-bottom {flex-direction:column}
+  .footer-legal {gap:15px}
+  .download-terms {max-width:none}
+}
+@media(prefers-reduced-motion:reduce) {
+  .screenshot-window,.screenshot-window:hover {transform:none}
+}
