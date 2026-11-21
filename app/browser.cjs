@@ -114,6 +114,10 @@ class Browser {
     } catch (error) { await this.close(); throw error; }
   }
   command(method, params) { this.privacy?.assert();return this.protocol.send(method, params, this.sessionId); }
+  setMousePreferences({humanizedMouse=false}={}){
+    this.mouseOptions={...this.mouseOptions,humanized:humanizedMouse===true};
+    if(this.mouse)this.mouse.humanized=this.mouseOptions.humanized;
+  }
   async clickElement(find,argument,options={}) {
     this.mouse ||= new BrowserMouse(this,this.mouseOptions);
     const signal=options.signal||new AbortController().signal;

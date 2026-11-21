@@ -45,6 +45,16 @@ test('Responses text handles tool output, refusals and truncation', () => {
   assert.throws(() => C.outputText({ status: 'completed', output: [{ type: 'message', content: [{ type: 'refusal', refusal: 'Declined' }] }] }), /Declined/);
   assert.throws(() => C.outputText({ status: 'completed', output: [] }), /no answer/);
 });
+
+test('confidence review explains the actual threshold and preserves independent check scores',()=>{
+  const value={...good,confidence:.9,crossChecked:true,verification:{primaryConfidence:.98,independentConfidence:.9}};
+  assert.throws(()=>C.validateDecision(value,q,.95),error=>{
+    assert.equal(error.code,'LOW_CONFIDENCE');assert.match(error.message,/90%.*95%/);
+    assert.equal(error.details.minimumConfidence,.95);assert.equal(error.details.verification.independentConfidence,.9);
+    assert.ok(!error.message.includes(good.explanation));return true;
+  });
+  assert.doesNotThrow(()=>C.validateDecision(value,q,.9));
+});
 test('citations are deduplicated and sanitized', () => {
   const note = { type: 'url_citation', url: 'https://example.org', title: 'Official source' };
   assert.deepEqual(C.citations({ output: [{ content: [{ annotations: [note, note, { ...note, url: 'javascript:void(0)' }] }] }] }), [{ url: note.url, title: note.title }]);

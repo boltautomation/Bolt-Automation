@@ -147,7 +147,7 @@
     const upgraded=Object.hasOwn(saved,'doubleCheck')?{}:{doubleCheck:true,guessWhenStuck:false,confidence:Math.max(.9,Number(saved.confidence)||.9)};
     settings=C.settings({model:'qwen3:4b',doubleCheck:true,confidence:.9,guessWhenStuck:false,randomOpinions:true,...saved,...upgraded});
   }catch{settings=C.settings({model:'qwen3:4b',doubleCheck:true,confidence:.9,guessWhenStuck:false,randomOpinions:true});}
-  for(const [key,value]of Object.entries(settings)){if(!$(key))continue;if(['autoSubmit','autoSurvey','guessWhenStuck','randomOpinions','doubleCheck'].includes(key))$(key).checked=value;else $(key).value=key==='confidence'?value*100:value;}
+  for(const [key,value]of Object.entries(settings)){if(!$(key))continue;if(['autoSubmit','autoSurvey','guessWhenStuck','randomOpinions','doubleCheck','humanizedMouse'].includes(key))$(key).checked=value;else $(key).value=key==='confidence'?value*100:value;}
   $('confidence-value').value=`${$('confidence').value}%`;
   function updateAnswerSpeed(){const seconds=Number($('answerDelayMs').value)/1000;const text=seconds?`${seconds}s pause`:'Fastest';$('answer-speed-value').value=text;$('answerDelayMs').setAttribute('aria-valuetext',seconds?`${seconds} second minimum after opening research`:'Fastest, no added pause');}
   updateAnswerSpeed();
@@ -166,7 +166,7 @@
     input.form?.addEventListener('reset',()=>requestAnimationFrame(update));
   }
   const mode=()=>document.querySelector('input[name=mode]:checked').value;
-  const config=()=>C.settings({model:$('model').value,finishActivity:true,doubleCheck:$('doubleCheck').checked,confidence:Number($('confidence').value)/100,answerDelayMs:Number($('answerDelayMs').value),interestDelayMs:Number($('interestDelayMs').value),autoSubmit:$('autoSubmit').checked,autoSurvey:$('autoSurvey').checked,surveyMode:$('surveyMode').value,guessWhenStuck:$('guessWhenStuck').checked,randomOpinions:$('randomOpinions').checked,...Object.fromEntries(['questionSelector','optionSelector','submitSelector','nextSelector'].map(id=>[id,$(id).value]))});
+  const config=()=>C.settings({model:$('model').value,finishActivity:true,doubleCheck:$('doubleCheck').checked,humanizedMouse:$('humanizedMouse').checked,confidence:Number($('confidence').value)/100,answerDelayMs:Number($('answerDelayMs').value),interestDelayMs:Number($('interestDelayMs').value),autoSubmit:$('autoSubmit').checked,autoSurvey:$('autoSurvey').checked,surveyMode:$('surveyMode').value,guessWhenStuck:$('guessWhenStuck').checked,randomOpinions:$('randomOpinions').checked,...Object.fromEntries(['questionSelector','optionSelector','submitSelector','nextSelector'].map(id=>[id,$(id).value]))});
   // Keep legacy server notices and saved errors consistent with neutral interface copy.
   const interfaceMessage=value=>String(value??'').replace(/\bCHATTERHIGH_BROWSER\b/g,'the browser executable setting').replace(/\byour ChatterHigh\b/gi,'your site').replace(/\bChatterHigh\b/gi,'the connected site');
   function status(message,error=false){$('status').textContent=interfaceMessage(message);$('status').dataset.error=String(error);}
@@ -254,6 +254,10 @@
   }
   $('history-filter').onchange=renderHistory;
   function renderRunTiming(){
+    const activeModel=current.runSettings?.model;
+    $('run-model').hidden=!activeModel;
+    $('run-model').textContent=activeModel?`${current.busy?'Running with':'Last run:'} ${activeModel}`:'';
+    $('model-run-hint').textContent=current.busy&&activeModel?`This run uses ${activeModel}. Model changes apply after Stop, then Resume.`:'Model changes apply on the next Start or Resume.';
     const timing=current.runTiming||{},seconds=Math.floor(Math.max(0,Number(timing.elapsedMs)||0)/1000);
     const minutes=Math.floor(seconds/60),hours=Math.floor(minutes/60),pad=value=>String(value).padStart(2,'0');
     $('run-elapsed').value=hours?hours+':'+pad(minutes%60)+':'+pad(seconds%60):pad(minutes)+':'+pad(seconds%60);
@@ -267,9 +271,9 @@
     $('quality-review').textContent=(current.queue||[]).filter(q=>q.status==='needs-attention').length;
   }
   function renderEvents(){const signature=JSON.stringify(current.events);if(signature===signatures.events)return;signatures.events=signature;const rows=new Map();for(const event of current.events||[]){if(!event.question)continue;const key=C.fingerprint(event.question);if(!rows.has(key))rows.set(key,{question:event.question});Object.assign(rows.get(key),event.type==='answer'?{answer:event.answer}:event.type==='evidence'?{evidence:event.evidence,sources:event.sources}:{});}$('log').replaceChildren();
-    for(const row of [...rows.values()].reverse()){const li=node('li','entry');li.append(node('h3','',row.question.prompt||row.question.text));const answer=row.answer;if(answer){li.append(node('p','answer',`${row.question.options.filter(option=>answer.optionIds?.includes(option.id)).map(option=>option.text).join('; ')||'Needs input'} · ${answer.randomOpinion?'random opinion response':answer.guessed?(answer.guessMethod==='random'?'unverified random guess':'unverified guess'):answer.survey?(answer.randomSurvey?'random survey response':'survey preset'):`${answer.crossChecked?'source cross-checked · ':''}${Math.round(answer.confidence*100)}% confidence (model estimate)`}`),node('p','',answer.explanation));}else li.append(node('p','',row.evidence?'Checking answer…':'Researching…'));
+    for(const row of [...rows.values()].reverse()){const li=node('li','entry');li.append(node('h3','',row.question.prompt||row.question.text));const answer=row.answer;if(answer){li.append(node('p','answer',`${row.question.options.filter(option=>answer.optionIds?.includes(option.id)).map(option=>option.text).join('; ')||'Needs input'} · ${answer.randomOpinion?'random opinion response':answer.guessed?(answer.guessMethod==='educated'?'unverified educated guess':answer.guessMethod==='random'?'unverified random guess':'unverified guess'):answer.survey?(answer.randomSurvey?'random survey response':'survey preset'):`${answer.crossChecked?'source cross-checked · ':''}${Math.round(answer.confidence*100)}% confidence (model estimate)`}`),node('p','',answer.explanation));}else li.append(node('p','',row.evidence?'Checking answer…':'Researching…'));
       if(answer?.reviewExplanation&&!answer.guessed){const detail=node('details','answer-review');detail.append(node('summary','','Second source check'),node('p','',answer.reviewExplanation));li.append(detail);}
-      if(answer?.evidenceQuote&&!answer.guessed)li.append(node('blockquote','answer-quote',answer.evidenceQuote));
+      if(!answer?.guessed)for(const quote of answer?.evidenceQuotes?.length?answer.evidenceQuotes.map(p=>p.text):answer?.evidenceQuote?[answer.evidenceQuote]:[])li.append(node('blockquote','answer-quote',quote));
       if(row.evidence){const details=node('details'),summary=node('summary','','Research notes'),pre=node('pre','',row.evidence.replace(/\uE200[^\uE201]*\uE201/g,' [source]'));details.append(summary,pre);li.append(details);}const list=node('ul');for(const source of answer?.sources||row.sources||[]){const url=C.safeUrl(source.url);if(!url)continue;const link=node('a','',source.title||url);link.href=url;link.target='_blank';link.rel='noreferrer noopener';const item=node('li');item.append(link);list.append(item);}li.append(list);$('log').append(li);
     }
     if(!rows.size)$('log').append(node('li','empty-small','Answers and research sources appear here during a run.'));
@@ -318,7 +322,7 @@
   $('download-model').onclick=downloadModel;$('setup-download').onclick=downloadModel;
   $('setup-settings').onclick=()=>{tab('settings');$('model').scrollIntoView({block:'center'});$('model').focus({preventScroll:true});};
   $('confidence').oninput=()=>{$('confidence-value').value=$('confidence').value+'%';};
-  $('settings-form').onsubmit=event=>{event.preventDefault();try{localStorage.setItem('chatterhigh-local-settings',JSON.stringify(config()));localError='';status('Settings saved.');}catch(error){status(error.message,true);}};
+  $('settings-form').onsubmit=event=>{event.preventDefault();try{localStorage.setItem('chatterhigh-local-settings',JSON.stringify(config()));localError='';status(current.busy?'Settings saved for the next Start or Resume. The current run keeps its existing settings.':'Settings saved.');}catch(error){status(error.message,true);}};
   $('shutdown').onclick=async()=>{try{await api('/api/shutdown',{});clearInterval(pollTimer);status('App closed. You can close this window.');for(const button of document.querySelectorAll('button'))button.disabled=true;}catch(error){status(error.message,true);}};
   for(const input of document.querySelectorAll('input,select'))input.addEventListener('input',()=>{localError='';});
   const tour=globalThis.BoltTour.init({navigate:tab,getState:()=>current,setSidebar:open=>{sidebarTourOpen=open;sidebar.dataset.tourOpen=String(open);syncSidebar();}});

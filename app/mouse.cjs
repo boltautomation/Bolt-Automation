@@ -1,16 +1,23 @@
 const {setTimeout:wait}=require('node:timers/promises');
 const {randomUUID}=require('node:crypto');
 
-function motionPath(from,to,random=Math.random){
+function motionPath(from,to,random=Math.random,humanized=false){
   const dx=to.x-from.x,dy=to.y-from.y,distance=Math.hypot(dx,dy);
   const bend=(random()-.5)*Math.min(70,distance*.22),nx=distance?-dy/distance:0,ny=distance?dx/distance:0;
-  const a={x:from.x+dx*.3+nx*bend,y:from.y+dy*.3+ny*bend};
-  const b={x:from.x+dx*.75+nx*bend,y:from.y+dy*.75+ny*bend};
-  const steps=Math.max(8,Math.min(36,Math.ceil(distance/18)));
+  const startRatio=humanized ? .22+random()*.16 : .3,endRatio=humanized ? .62+random()*.18 : .75;
+  const endBend=humanized?bend*(.3+random()*1.2):bend;
+  const a={x:from.x+dx*startRatio+nx*bend,y:from.y+dy*startRatio+ny*bend};
+  const b={x:from.x+dx*endRatio+nx*endBend,y:from.y+dy*endRatio+ny*endBend};
+  const steps=humanized?Math.max(12,Math.min(44,Math.ceil(distance/15))):Math.max(8,Math.min(36,Math.ceil(distance/18)));
   return Array.from({length:steps},(_,i)=>{
-    const t=(i+1)/steps,u=t*t*(3-2*t),v=1-u;
+    if(distance===0||i===steps-1)return {...to};
+    const t=(i+1)/steps,u=humanized?t*t*t*(10+t*(-15+6*t)):t*t*(3-2*t),v=1-u;
     return {x:v*v*v*from.x+3*v*v*u*a.x+3*v*u*u*b.x+u*u*u*to.x,y:v*v*v*from.y+3*v*v*u*a.y+3*v*u*u*b.y+u*u*u*to.y};
   });
+}
+
+function movementDuration(distance,humanized=false,random=Math.random){
+  return humanized?Math.min(440,(145+Math.sqrt(distance)*7.5)*(.92+random()*.16)):Math.min(280,100+Math.sqrt(distance)*5);
 }
 
 // Runs in the page's isolated world. The overlay cannot intercept page input.
@@ -115,8 +122,8 @@ function locateTarget(find,argument,token,checkPoint){
 }
 
 class BrowserMouse{
-  constructor(browser,{durationScale=1,random=Math.random,sleep=(ms,signal)=>wait(ms,undefined,{signal})}={}){
-    Object.assign(this,{browser,durationScale,random,sleep});this.position={x:24,y:24};
+  constructor(browser,{durationScale=1,random=Math.random,sleep=(ms,signal)=>wait(ms,undefined,{signal}),humanized=false}={}){
+    Object.assign(this,{browser,durationScale,random,sleep,humanized});this.position={x:24,y:24};
   }
   async click(find,argument,{signal=new AbortController().signal,requireSite=true,beforePress=async()=>{}}={}){
     signal.throwIfAborted();
@@ -152,12 +159,12 @@ class BrowserMouse{
       return observe('move');
     };
     const moveTo=async destination=>{
-      const path=motionPath(this.position,destination,this.random);
-      const duration=Math.min(280,100+Math.sqrt(Math.hypot(destination.x-this.position.x,destination.y-this.position.y))*5)*this.durationScale;
+      const path=motionPath(this.position,destination,this.random,this.humanized);
+      const duration=movementDuration(Math.hypot(destination.x-this.position.x,destination.y-this.position.y),this.humanized,this.random)*this.durationScale;
       const started=performance.now();
       let observed;
       for(let index=0;index<path.length;index++){
-        const point=path[index],input=mapped(point);
+        const sample=path[index],point=this.humanized&&index<path.length-1?{x:Math.max(0,Math.min(target.width-1,sample.x)),y:Math.max(0,Math.min(target.height-1,sample.y))}:sample,input=mapped(point);
         signal.throwIfAborted();
         if(index===path.length-1)observed=await moveInput(input);
         else await this.browser.command('Input.dispatchMouseEvent',{type:'mouseMoved',...input,button:'none',buttons:0,pointerType:'mouse'});
@@ -174,13 +181,14 @@ class BrowserMouse{
         x:Math.max(1,Math.min(target.width-2,first.x+(first.x<target.width/2?128:-128))),
         y:Math.max(1,Math.min(target.height-2,first.y+(first.y<target.height/2?128:-128)))
       };
-      const path=motionPath(first,probe,this.random);
+      const path=motionPath(first,probe,this.random,this.humanized);
+      const duration=this.humanized?movementDuration(Math.hypot(probe.x-first.x,probe.y-first.y),true,this.random):100;
       let second;const started=performance.now();
       for(let index=0;index<path.length;index++){
         signal.throwIfAborted();
         if(index===path.length-1)second=await moveInput(path[index]);
         else await this.browser.command('Input.dispatchMouseEvent',{type:'mouseMoved',...path[index],button:'none',buttons:0,pointerType:'mouse'});
-        const remaining=started+100*this.durationScale*(index+1)/path.length-performance.now();
+        const remaining=started+duration*this.durationScale*(index+1)/path.length-performance.now();
         if(remaining>0)await this.sleep(remaining,signal);
       }
       const sx=(probe.x-first.x)/(second.x-observed.x),sy=(probe.y-first.y)/(second.y-observed.y);
@@ -224,4 +232,4 @@ class BrowserMouse{
     }
   }
 }
-module.exports={BrowserMouse,motionPath};
+module.exports={BrowserMouse,motionPath,movementDuration};

@@ -118,14 +118,17 @@
                 return answer;
               } catch(error) {
                 workingSignal.throwIfAborted();
+                if(error.code==='LOW_CONFIDENCE')this.onEvent({type:'answer-review',question,count,attempt:attempt+1,details:error.details});
                 if(config.randomOpinions&&personalQuestionError(error)&&C.isOpinionQuestion(question,true)){
                   this.onEvent({type:'random-opinion',question,count});
                   await prepareForAnswer(workingSignal);
                   return C.randomOpinionAnswer(question);
                 }
                 const retryable = /multiple answers|valid answer|option|JSON|quote|cited|source|evidence|research page|did not finish|generation failed|not enough|needs review/i.test(error.message) && !/own opinion|experience|personal|not installed|API key/i.test(error.message);
-                if(preset || attempt===2 || !retryable)throw error;
-                repair = {error:error.message,previous:answer ? {optionIds:answer.optionIds,confidence:answer.confidence,personal:answer.personal,explanation:answer.explanation} : null,...(error.review?{review:error.review}:{})};
+                if(preset || attempt===2 || !retryable || error.code==='LOW_CONFIDENCE'&&attempt>=1)throw error;
+                // A confidence miss gets one fresh evidence read. Do not tell
+                // the model a target score or anchor it to the earlier answer.
+                repair = error.code==='LOW_CONFIDENCE'?{code:error.code,error:'Re-evaluate whether the source establishes the exact question. Do not raise confidence merely to pass a threshold.',previous:null}:{error:error.message,previous:answer ? {optionIds:answer.optionIds,confidence:answer.confidence,personal:answer.personal,explanation:answer.explanation} : null,...(error.review?{review:error.review}:{})};
                 recover(/needs review|not enough|quote|source|evidence|research page/i.test(error.message)?`Reading more research and checking the answer (${attempt+1}/2)…`:`Rechecking the answer automatically (${attempt+1}/2)…`);
                 await this.sleep(400,workingSignal);
               }
@@ -140,15 +143,16 @@
               this.onEvent({type:'guessing',question,count,message:error.message});
               await prepareForAnswer(signal);
               startPacing();
-              let best;
-              if(answer)try{best=C.markGuess(answer,question,error.message);}catch{}
+              let best,guessFailure;
+              if(error.code==='LOW_CONFIDENCE'&&answer?.crossChecked&&answer.sources?.length&&answer.evidenceQuote?.length>=12)try{best=C.educatedGuess({...answer,canAnswer:true,basis:'source-context'},question,error.message);}catch{}
               if(!best&&this.guess){
                 try{
                   const candidate=await bounded(guessSignal=>this.guess(question,guessSignal,error.message),this.guessTimeoutMs,signal,'Best-effort guess generation timed out.');
-                  best=C.markGuess(C.normalizeCombinedAnswer(candidate,question),question,error.message);
-                }catch(guessError){signal.throwIfAborted();if(config.randomOpinions&&personalQuestionError(guessError)&&C.isOpinionQuestion(question,true)){this.onEvent({type:'random-opinion',question,count});best=C.randomOpinionAnswer(question);}else if(!guessAllowed(guessError))throw guessError;}
+                  best=C.educatedGuess(C.normalizeCombinedAnswer(candidate,question),question,error.message);
+                }catch(guessError){signal.throwIfAborted();if(config.randomOpinions&&personalQuestionError(guessError)&&C.isOpinionQuestion(question,true)){this.onEvent({type:'random-opinion',question,count});best=C.randomOpinionAnswer(question);}else if(!guessAllowed(guessError))throw guessError;else guessFailure=guessError;}
               }
-              answer=best||C.randomGuess(question,error.message);
+              if(!best){const review=new Error('No educated guess was available. Review this question.');review.code='NO_EDUCATED_GUESS';review.details={reason:'educated-guess-unavailable',researchError:error.message,guessError:guessFailure?.message||'No local guess model available.'};throw review;}
+              answer=best;
               signal.throwIfAborted();guessed=true;
             }
             guessed ||= Boolean(answer.guessed);randomOpinion ||= Boolean(answer.randomOpinion);

@@ -83,7 +83,7 @@ async function main() {
     await wait(500);
     await ui.evaluate(()=>{localStorage.setItem('bolt-onboarding-v1','skipped');if(document.getElementById('quick-tour').open)document.getElementById('tour-skip').click();});
     const dashboard = await ui.evaluate(() => ({ title: document.title, email: document.getElementById('email').value, password: document.getElementById('password').value, connected: document.getElementById('connected').textContent, token: document.querySelector('meta[name=app-token]').content.length }));
-    assert.equal(dashboard.title, 'Bolt'); assert.equal(dashboard.password, ''); assert.ok(dashboard.connected.includes(credentials.email)); assert.equal(dashboard.token, 64);
+    assert.equal(dashboard.title, 'Bolt · '+require('../package.json').versionName); assert.equal(dashboard.password, ''); assert.ok(dashboard.connected.includes(credentials.email)); assert.equal(dashboard.token, 64);
     assert.equal(await ui.evaluate(() => document.getElementById('autoSurvey').checked), true);
     assert.equal(await ui.evaluate(() => document.getElementById('guessWhenStuck').checked), false);
     assert.equal(await ui.evaluate(() => document.getElementById('doubleCheck').checked), true);
@@ -195,11 +195,11 @@ async function main() {
     await until(async () => manager.state.phase === 'complete' && !manager.job);
     await until(async () => await ui.evaluate(() => document.getElementById('status').textContent.includes('Quiz completed')));
     console.log('PASS UI Stop cancels research, and Continue resumes the same signed-in account');
-    manager.solverFactory=()=>({solve:async()=>{throw new Error('No research page could be read.');},guess:async()=>({...answer,confidence:.2,sources:[]})});
+    manager.solverFactory=()=>({solve:async()=>{throw new Error('No research page could be read.');},guess:async()=>({...answer,confidence:.65,sources:[],canAnswer:true,basis:'general-knowledge'})});
     await manager.browser.navigate(origin+'/dashboard',new AbortController().signal);
     await ui.evaluate(()=>{document.querySelector('input[value=daily]').click();document.getElementById('run-form').requestSubmit();});
     await until(async()=>manager.state.phase==='complete'&&!manager.job&&manager.state.events.some(e=>e.type==='answer'&&e.answer.guessed));
-    await until(async()=>await ui.evaluate(()=>document.querySelector('#log .answer')?.textContent.includes('unverified guess')));
+    await until(async()=>await ui.evaluate(()=>document.querySelector('#log .answer')?.textContent.includes('unverified educated guess')));
     assert.equal(await ui.evaluate(()=>document.querySelector('#log .answer').textContent.includes('confidence')),false);
     assert.equal(await ui.evaluate(()=>JSON.parse(localStorage.getItem('chatterhigh-local-settings')).guessWhenStuck),true);
     console.log('PASS Guess when stuck saves its preference, submits a valid best-effort choice after research fails, and labels it unverified');

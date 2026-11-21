@@ -12,8 +12,9 @@ function solverWith(responses){let calls=[];const solver=new OllamaSolver({doubl
 test('cross-checking requires agreement and uses the lower model estimate',async()=>{
   const {solver,calls}=solverWith([answer,{...answer,confidence:.91,supported:true}]);
   const result=await solver.solve(question,new AbortController().signal);assert.equal(result.crossChecked,true);assert.equal(result.confidence,.91);assert.equal(calls.length,2);
+  assert.deepEqual(result.verification,{primaryConfidence:.98,independentConfidence:.91});
   assert.match(calls[1].messages[0].content,/EVERY option/);assert.ok(!calls[1].messages[1].content.includes(answer.explanation),'audit must not see the proposed answer');
-  assert.equal(calls[0].format.properties.evidenceQuote.enum,undefined,'quotes are not forced into a small unrelated candidate list');
+  assert.equal(calls[0].format.properties.evidenceQuote,undefined,'models select references instead of copying quotes');
 });
 test('a real quote attached to the wrong choice cannot pass a disagreeing audit',async()=>{
   const {solver}=solverWith([{...answer,optionIds:['a']},{...answer,supported:true}]);

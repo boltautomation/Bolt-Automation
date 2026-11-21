@@ -38,6 +38,35 @@ test('local solver rejects fabricated evidence and invented citations', async ()
   }
 });
 
+test('model prompts use explicit A/B/C labels and exclude duplicated UI and internal research URLs',async()=>{
+  const requests=[],q={...question,prompt:'What else does the resource page link to?',text:'What else does the resource page link to? Research Submit Report problem',options:[{id:'o0',text:'Meditation'},{id:'o1',text:'Craft ideas'},{id:'o2',text:'Jobs'},{id:'o3',text:'Both A and C'}]};
+  const solver=new OllamaSolver({doubleCheck:true,sourceLoader:async()=>[source],fetcher:async(url,request)=>{requests.push(JSON.parse(request.body));return result({...decision,optionIds:['o0'],supported:true});}});
+  await solver.solve(q,new AbortController().signal);
+  for(const body of requests){
+    const sent=JSON.parse(body.messages[1].content.split('QUESTION:\n')[1].split('\nSOURCE EXCERPTS:')[0]);
+    assert.deepEqual(sent.options.map(o=>[o.label,o.id]),[['A','o0'],['B','o1'],['C','o2'],['D','o3']]);
+    assert.equal(sent.links,undefined);assert.equal(sent.text,undefined);assert.equal(sent.prompt,q.prompt);
+  }
+});
+
+test('research, independent checks and fallback guesses reuse one model context', async () => {
+  const requests=[];
+  let loadedContext,loads=0;
+  const solver=new OllamaSolver({doubleCheck:true,sourceLoader:async()=>[source],fetcher:async(url,request)=>{
+    const body=JSON.parse(request.body);requests.push(body);
+    // Model the Ollama scheduler: a changed allocation requires a reload.
+    if(body.options.num_ctx!==loadedContext){loadedContext=body.options.num_ctx;loads++;}
+    return result({...decision,supported:true,canAnswer:true,basis:'general-knowledge'});
+  }});
+  const signal=new AbortController().signal;
+  await solver.solve(question,signal);
+  await solver.guess(question,signal);
+  await solver.solve(question,signal);
+  assert.equal(requests.length,5);
+  assert.equal(loads,1,'falling back and returning to research must not reload the model');
+  assert.equal(requests[2].options.num_predict,700,'guesses retain their shorter output budget');
+});
+
 test('True/False inference excludes both N/A placeholders and preserves page IDs',async()=>{
   let body;
   const q={...question,prompt:'Ottawa is the capital of Canada.',multiple:true,options:[{id:'o0',text:'N/A'},{id:'o1',text:'False'},{id:'o2',text:'True'},{id:'o3',text:'N/A'}]};

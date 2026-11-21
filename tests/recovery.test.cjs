@@ -48,3 +48,21 @@ test('unresolved model errors stop after three attempts without submitting guess
   await assert.rejects(f.run(),/quote supporting evidence/);assert.equal(calls,3);
   assert.ok(f.actions.every(action=>action.action==='scan'));
 });
+
+test('low confidence gets one fresh evidence attempt and reports the actual unmet threshold',async()=>{
+  let calls=0;
+  const f=fixture([page('q')],async(question,signal,research,repair)=>{
+    calls++;
+    if(calls===2){assert.equal(repair.code,'LOW_CONFIDENCE');assert.equal(repair.previous,null);assert.ok(!repair.error.includes('95%'));}
+    return {...good,confidence:.8,crossChecked:true};
+  });
+  await assert.rejects(f.run(),error=>error.code==='LOW_CONFIDENCE'&&error.details.confidence===.8);
+  assert.equal(calls,2);assert.ok(!f.actions.some(action=>action.action==='fill'||action.action==='submit'));
+  assert.equal(f.events.filter(event=>event.type==='answer-review').length,2);
+});
+
+test('fresh source verification may resolve a confidence miss without guessing',async()=>{
+  let calls=0;const f=fixture([page('q'),done],async()=>({...good,confidence:++calls===1?.8:.98,crossChecked:true}));
+  assert.equal((await f.run()).reason,'complete');assert.equal(calls,2);
+  assert.equal(f.actions.filter(action=>action.action==='submit').length,1);
+});

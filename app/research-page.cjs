@@ -5,7 +5,18 @@ function readResearchPage({prompt='',expand=false,plan=false}={}) {
   if(document.readyState==='loading'||document.querySelector('input[type=password]'))return null;
   const root=document.querySelector('main')||document.querySelector('article')||document.body;
   const normalize=value=>String(value||'').replace(/\s+/g,' ').trim();
-  const text=node=>{const copy=node.cloneNode(true);for(const el of copy.querySelectorAll('script,style,noscript,template,svg,input,textarea,select,nav,header,footer,[contenteditable]'))el.remove();return normalize(copy.textContent);};
+  const text=(node,visibleOnly=false)=>{
+    const copy=node.cloneNode(true),originals=[...node.querySelectorAll('*')],clones=[...copy.querySelectorAll('*')];
+    for(let index=0;index<originals.length;index++){
+      const original=originals[index],clone=clones[index];
+      if(original.matches('script,style,noscript,template,svg,input,textarea,select,[contenteditable]')||!visibleOnly&&original.matches('nav,header,footer')){clone.remove();continue;}
+      if(visibleOnly){const style=getComputedStyle(original);if(style.visibility==='hidden'||style.visibility==='collapse'||!original.getClientRects().length&&style.display!=='contents')clone.remove();}
+    }
+    // Inline links/buttons often have no whitespace between them in the DOM.
+    // Preserve their boundaries without splitting numbers or formatted words.
+    for(const el of copy.querySelectorAll('a,button,[role=button],[role=tab],li,div,section,article,p,h1,h2,h3,h4,br,dt,dd,td,th')){el.before(' ');el.after(' ');}
+    return normalize(copy.textContent);
+  };
   const words=value=>normalize(value).toLowerCase().replace(/[’']/g,'').match(/[a-z]{3,}/g)?.map(word=>word.replace(/s$/,''))||[];
   const query=new Set(words(prompt));const sections=[],seen=new Set(),mouseControls=[];let expanded=0;
   const expandControl=control=>{if(plan&&(!control.getClientRects().length||getComputedStyle(control).visibility==='hidden'))return;if(!mouseControls.includes(control)){mouseControls.push(control);if(!plan)control.click();expanded++;}};
@@ -32,7 +43,7 @@ function readResearchPage({prompt='',expand=false,plan=false}={}) {
   for(const panel of root.querySelectorAll('details,[role=tabpanel],.collapse,.accordion-content,.accordion-body,.tab-pane'))add(panel,'',null);
   sections.sort((a,b)=>b.score-a.score);
   const focused=sections.filter(section=>section.score>=.6);
-  const visible=normalize(root.innerText);
+  const visible=text(root,true);
   const blocks=[...focused.map(section=>`${section.title}: ${section.text}`),visible,...sections.filter(section=>!focused.includes(section)).map(section=>`${section.title}: ${section.text}`)];
   if(plan)globalThis.__boltResearchControls=mouseControls;
   return {url:location.href,title:document.title,text:[...new Set(blocks.filter(Boolean))].join('\n\n'),sections:sections.length,focused:focused.map(section=>section.title),expanded,...(plan?{mouseControls:mouseControls.map((_,i)=>i)}:{})};

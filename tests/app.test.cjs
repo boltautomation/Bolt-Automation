@@ -70,9 +70,31 @@ test('module list comes from the account and selected module is opened', async (
   assert.equal(m.state.phase, 'complete'); assert.equal(browsers.length, 1);
   assert.ok(browsers[0].actions.some(action => action.navigate === 'https://chatterhigh.com/modules/2'));
 });
+
+test('run settings report the model actually passed to the solver and change on restart',async()=>{
+  const {m}=manager(),models=[];
+  m.solverFactory=options=>{models.push(options.model);return {solve:async()=>good};};
+  const data=runData();m.run(data);
+  data.settings.model='qwen3.8:27b';
+  await m.job;
+  assert.equal(m.snapshot().runSettings.model,'qwen3:4b');
+  assert.deepEqual(Object.keys(m.snapshot().runSettings).sort(),['answerDelayMs','confidence','doubleCheck','humanizedMouse','interestDelayMs','model']);
+  m.run(data);await m.job;
+  assert.equal(m.snapshot().runSettings.model,'qwen3.8:27b');
+  assert.deepEqual(models,['qwen3:4b','qwen3.8:27b']);
+});
 test('successful sign-in loads modules even when Daily Quiz is selected', async () => {
   const { m } = manager(); m.connect({ ...credentials(), mode: 'daily' }); await m.job;
   assert.equal(m.state.modulesStatus, 'loaded'); assert.equal(m.state.modules.length, 2); assert.equal(m.snapshot().connected, true);
+});
+
+test('mouse preferences apply on Start and update an existing browser on the next run',async()=>{
+  const {m,browsers}=manager(),make=m.browserFactory;
+  m.browserFactory=()=>{const b=make();b.setMousePreferences=options=>{b.humanizedMouse=options.humanizedMouse===true;};return b;};
+  const data=runData();data.settings.humanizedMouse=true;m.run(data);await m.job;
+  assert.equal(browsers[0].humanizedMouse,true);assert.equal(m.snapshot().runSettings.humanizedMouse,true);
+  data.settings.humanizedMouse=false;m.run(data);await m.job;
+  assert.equal(browsers.length,1);assert.equal(browsers[0].humanizedMouse,false);
 });
 test('module loading failure keeps the account connected and exposes a catalog error', async () => {
   const { m } = manager();
@@ -154,11 +176,11 @@ test('queue moves past a failed module and can retry it from the right task',asy
   assert.equal(m.state.phase,'complete');assert.equal(m.browser.currentUrl,'https://chatterhigh.com/modules/1');
 });
 
-test('guess mode continues with labeled valid choices when the local model is unavailable',async()=>{
+test('educated guessing pauses when the local model is unavailable instead of submitting random answers',async()=>{
   const {m}=manager();m.solverFactory=()=>({check:async()=>{throw new Error('Ollama is not reachable.');},solve:async()=>{throw new Error('Should not call an unavailable model');}});
   m.run({...runData(),settings:{guessWhenStuck:true}});await m.job;
-  assert.equal(m.state.phase,'complete');
-  assert.equal(m.state.events.find(e=>e.type==='answer').answer.guessMethod,'random');
+  assert.equal(m.state.phase,'paused');
+  assert.ok(!m.state.events.some(e=>e.type==='answer'));
 });
 
 test('recognized opinions can be randomized without a local model even when factual guessing is off',async()=>{

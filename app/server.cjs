@@ -46,12 +46,12 @@ async function createApp({ manager = new Manager(), study=new StudyService(), pr
       if (request.headers.host !== new URL(origin).host) throw error('Invalid host.', 403);
       if (request.headers.origin && request.headers.origin !== origin) throw error('Invalid origin.', 403);
       const route = new URL(request.url, origin).pathname;
-      if (request.method === 'GET' && route === '/health') return json(response, 200, { app: 'chatterhigh-local-app', version: 13,release:release.versionName||release.version });
+      if (request.method === 'GET' && route === '/health') return json(response, 200, { app: 'chatterhigh-local-app', version: 13,release:release.versionName||release.version,build:release.version });
       if (request.method === 'GET' && staticFiles[route]) {
         const [file, type] = staticFiles[route];
         let content = await fs.readFile(path.resolve(PUBLIC, file));
         if (route === '/') content = content.toString('utf8').replace('__APP_TOKEN__', token).replace('__STUDY_PANEL__',await fs.readFile(path.join(PUBLIC,'study-panel.html'),'utf8')).replaceAll('https://ollama.com/download/windows',process.platform==='darwin'?'https://ollama.com/download/mac':'https://ollama.com/download/windows').replaceAll('Saved passwords and sessions are encrypted for your Windows sign-in.',process.platform==='darwin'?'Saved passwords and sessions are encrypted with a key in your macOS login Keychain.':'Saved passwords and sessions are encrypted for your Windows sign-in.').replaceAll('on this PC','on this computer').replaceAll('Your Windows pointer stays free.','Your system pointer stays free.');
-        if(route==='/')content=content.toString('utf8').replaceAll('__APP_VERSION__',release.versionName||release.version);
+        if(route==='/')content=content.toString('utf8').replaceAll('__APP_VERSION__',release.versionName||release.version).replaceAll('__BUILD_VERSION__',release.version);
         response.writeHead(200, { 'Content-Type': type }); response.end(content); return;
       }
       const provided = request.headers['x-app-token'];

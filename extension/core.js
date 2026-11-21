@@ -2,7 +2,7 @@
 (() => {
   const defaults = Object.freeze({
     model: "gpt-5.4-mini", autoSubmit: true, autoSurvey: true, surveyMode: 'preset', guessWhenStuck: false, randomOpinions: false, finishActivity: false, confidence: 0.85, maxQuestions: 20, answerDelayMs: 0, interestDelayMs: 0,
-    doubleCheck: false, questionSelector: "", optionSelector: "", submitSelector: "", nextSelector: ""
+    doubleCheck: false, humanizedMouse: false, questionSelector: "", optionSelector: "", submitSelector: "", nextSelector: ""
   });
   const normalize = value => String(value ?? "").replace(/\s+/g, " ").trim();
   const fingerprint = value => JSON.stringify(value);
@@ -35,6 +35,7 @@
     if(!['preset','random'].includes(value.surveyMode))throw new Error('Choose No / lowest interest or Random responses for surveys.');
     value.guessWhenStuck = Boolean(value.guessWhenStuck);
     value.doubleCheck = Boolean(value.doubleCheck);
+    value.humanizedMouse = Boolean(value.humanizedMouse);
     value.randomOpinions = Boolean(value.randomOpinions);
     value.finishActivity = Boolean(value.finishActivity);
     for (const name of ["questionSelector", "optionSelector", "submitSelector", "nextSelector"]) value[name] = normalize(value[name]);
@@ -51,8 +52,13 @@
   function validateDecision(decision, question, threshold) {
     if (!decision || typeof decision !== "object") throw new Error("The solver returned an invalid answer.");
     if (decision.personal) { const error=new Error("This question asks for your own opinion or experience. Answer it in the quiz, then start again.");error.code='PERSONAL_QUESTION';throw error; }
-    if (!Number.isFinite(decision.confidence) || decision.confidence < threshold || decision.confidence > 1) {
-      throw new Error(`Answer needs review: ${decision.explanation || "not enough evidence"}`);
+    if (!Number.isFinite(decision.confidence) || decision.confidence < 0 || decision.confidence > 1) throw new Error('The local model returned an invalid confidence score. Review this question.');
+    if (decision.confidence < threshold) {
+      const percent=value=>(value*100).toFixed(1).replace(/\.0$/,'');
+      const error=new Error(`Answer needs review: confidence ${percent(decision.confidence)}% is below your ${percent(threshold)}% minimum.${decision.crossChecked?' The independent source checks agreed, but did not reach that minimum.':''}`);
+      error.code='LOW_CONFIDENCE';
+      error.details={reason:'confidence',confidence:decision.confidence,minimumConfidence:threshold,crossChecked:decision.crossChecked===true,explanation:decision.explanation||'',...(decision.verification?{verification:decision.verification}:{})};
+      throw error;
     }
     if (!Array.isArray(decision.optionIds) || !decision.optionIds.length || new Set(decision.optionIds).size !== decision.optionIds.length) {
       throw new Error("The solver did not select a valid answer.");
@@ -66,7 +72,18 @@
   }
   function markGuess(decision,question,reason,method='model') {
     validateDecision(decision,question,0);
-    return {...decision,guessed:true,verified:false,supported:false,guessMethod:method,guessReason:normalize(reason),sources:Array.isArray(decision.sources)?decision.sources:[],explanation:`Unverified guess${method==='random'?' (random choice)':''}. ${normalize(decision.explanation)}`.trim()};
+    return {...decision,guessed:true,verified:false,supported:false,guessMethod:method,guessReason:normalize(reason),sources:Array.isArray(decision.sources)?decision.sources:[],explanation:`Unverified guess${method==='random'?' (random choice)':method==='educated'?' (educated)':''}. ${normalize(decision.explanation)}`.trim()};
+  }
+  function educatedGuess(decision,question,reason){
+    if(decision?.personal)validateDecision(decision,question,0);
+    const booleanOptions=trueFalseOptions(question),options=booleanOptions||question.options||[];
+    const singleChoice=!question.multiple||!!booleanOptions;
+    const minimum=singleChoice?Math.max(.35,1/Math.max(1,options.length)+.05):.35;
+    if(!decision||decision.canAnswer!==true||!['source-context','general-knowledge'].includes(decision.basis)||normalize(decision.explanation).length<12||decision.confidence<minimum||decision.basis==='source-context'&&!decision.sources?.length){
+      const error=new Error('No educated guess could be established from the available context or model knowledge. Review this question.');error.code='NO_EDUCATED_GUESS';throw error;
+    }
+    validateDecision(decision,question,0);
+    return markGuess({...decision,sources:decision.basis==='source-context'?decision.sources:[]},question,reason,'educated');
   }
   function randomGuess(question,reason,random=Math.random) {
     const options=trueFalseOptions(question)||question.options||[];
@@ -149,5 +166,5 @@
     }
     return [...found.values()];
   }
-  globalThis.ChatterCore = { defaults, normalize, fingerprint, safeUrl, isChatterHigh, settings, trueFalseOptions, validateDecision, markGuess, randomGuess, isOpinionQuestion, randomOpinionAnswer, isInterestQuestion, surveyAnswer, normalizeCombinedAnswer, outputText, citations };
+  globalThis.ChatterCore = { defaults, normalize, fingerprint, safeUrl, isChatterHigh, settings, trueFalseOptions, validateDecision, markGuess, educatedGuess, randomGuess, isOpinionQuestion, randomOpinionAnswer, isInterestQuestion, surveyAnswer, normalizeCombinedAnswer, outputText, citations };
 })();

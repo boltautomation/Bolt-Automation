@@ -32,7 +32,7 @@ class Manager {
     if(detail.type==='research'){this.state.phase='running';this.state.message=`Researching question ${detail.count+1}…`;}
     if(detail.type==='pacing'){this.state.phase='running';this.state.message=`${detail.interest?'Interest question cooldown':'Thinking cooldown'}: ${detail.delayMs/1000}s before continuing…`;}
     if(detail.type==='evidence'){this.state.phase='running';this.state.message=detail.checking?'Cross-checking the answer against the sources…':'Research read. Generating the answer…';}
-    if(detail.type==='guessing'){this.state.phase='running';this.state.message='Research is stuck. Making an unverified guess and continuing…';}
+    if(detail.type==='guessing'){this.state.phase='running';this.state.message='Research could not verify the answer. Assessing an unverified educated guess…';}
     if(detail.type==='random-opinion'){this.state.phase='running';this.state.message='Choosing a random opinion response…';}
     if(detail.type==='recovering'){this.state.phase='recovering';this.state.message=detail.message;}
     this.state.events.push({...detail,at:new Date().toISOString(),task:this.state.activity?.title});if(this.state.events.length>200)this.state.events.shift();
@@ -73,7 +73,7 @@ class Manager {
       if(this.sessionRecoveries.length>=3)throw new SessionRecoveryError('ChatterHigh keeps ending this session. The remaining queue is saved; check the account in the browser before resuming.');
       this.sessionRecoveries.push(Date.now());this.event({type:'recovering',message:'Session expired. Signing back into the same account and restoring the queue…',count:this.state.taskCount});this.state.phase='reconnecting';
       signal.throwIfAborted();
-      if(!this.browser||this.browser.alive===false){if(this.browser)await this.browser.close();this.browser=this.browserFactory();await this.browser.launch(signal);}
+      if(!this.browser||this.browser.alive===false){if(this.browser)await this.browser.close();this.browser=this.browserFactory();this.browser.setMousePreferences?.(this.mousePreferences||{});await this.browser.launch(signal);}
       await this.browser.login(this.state.account,password,signal,this.signInUrl);
       await this.checkSession(signal);await this.persistQuietly(password);
       this.event({type:'session-restored',message:'Signed back in. Continuing the interrupted module.',count:this.state.taskCount});
@@ -98,7 +98,7 @@ class Manager {
     await this.persistQuietly();if(this.browser)await this.browser.close();
     this.browser=null;this.pausedTasks=[];this.batchOffset=0;this.state={...initial(),phase:'signing-in',loginEmail:email,accountId:data.accountId||'',message:'Signing in…'};
     this.pendingAccount=email;this.pendingRemember=Boolean(data.remember||data.accountId);
-    this.browser=this.browserFactory();
+    this.browser=this.browserFactory();this.browser.setMousePreferences?.(this.mousePreferences||{});
     try{
       await this.browser.launch(signal);
       let restored=false;
@@ -143,11 +143,14 @@ class Manager {
     if(data.resume&&data.accountId!==this.state.accountId&&String(data.email||'').trim().toLowerCase()!==(this.state.account||this.pendingAccount||'').toLowerCase())throw new Error('Continue uses the account already in the browser. Sign in to switch accounts.');
     if(data.activityUrl)activities.activityUrl(this.browser||this.browserFactory(),data.activityUrl);
     this.begin(async signal=>{
+      this.mousePreferences={humanizedMouse:config.humanizedMouse};
       const solver=this.solverFactory({baseUrl,model:config.model,doubleCheck:config.doubleCheck,sourceLoader:(question,sourceSignal,options)=>this.browser.researchSources(question,sourceSignal,options)});
       let modelFailure;
-      if(solver.check){this.state.message='Checking the local model…';try{await solver.check(signal);}catch(error){signal.throwIfAborted();if(!config.guessWhenStuck&&!config.randomOpinions)throw error;modelFailure=error;this.state.message=config.guessWhenStuck?'Local AI unavailable. Continuing with unverified guesses.':'Local AI unavailable. Recognized opinion questions can still use random responses.';}}
+      if(solver.check){this.state.message='Checking the local model…';try{await solver.check(signal);}catch(error){signal.throwIfAborted();if(!config.randomOpinions)throw error;modelFailure=error;this.state.message='Local AI unavailable. Factual questions need review; recognized opinions can still use random responses.';}}
       if(data.resume){await this.ensureSession(signal);if(!this.state.account)this.state.account=this.pendingAccount;}
       else await this.ensureAccount(data,signal);
+      this.browser.setMousePreferences?.(this.mousePreferences);
+      this.state.runSettings={model:config.model,doubleCheck:config.doubleCheck,confidence:config.confidence,humanizedMouse:config.humanizedMouse,answerDelayMs:config.answerDelayMs,interestDelayMs:config.interestDelayMs};
       let tasks;
       if(data.resume&&this.pausedTasks?.length)tasks=this.pausedTasks;
       else if(data.resume&&this.state.activity)tasks=[{...this.state.activity,id:this.state.activity.id||this.state.activity.moduleId||this.dailyId(),url:this.state.activity.url,completed:false}];
@@ -204,7 +207,7 @@ class Manager {
             await this.outcome(task,'paused',error.message);this.pausedTasks=[...new Map([...this.pausedTasks,...tasks.slice(index)].map(item=>[item.id,item])).values()];this.state.phase='paused';this.state.error=true;this.state.message=error.message;return;
           }
           attention++;this.batchOffset+=this.state.taskCount;this.state.count=this.batchOffset;await this.outcome(task,'needs-attention',error.message);this.pausedTasks.push(task);
-          this.state.events.push({type:'task-error',task:task.title,message:error.message,...(error.details?{details:error.details}:{}),at:new Date().toISOString()});
+          this.state.events.push({type:'task-error',task:task.title,message:error.message,...(error.code?{code:error.code}:{}),...(error.details?{details:error.details}:{}),at:new Date().toISOString()});
         }
       }
       this.state.queueIndex=tasks.length;this.state.phase=attention?'paused':'complete';this.state.error=Boolean(attention);

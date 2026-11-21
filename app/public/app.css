@@ -160,3 +160,6 @@ body:has(#quick-tour[open]) .sidebar::before,body:has(#quick-tour[open]) .worksp
 @media(prefers-reduced-motion:reduce){.sidebar::before,.workspace::after{transition:none}}
 @media(prefers-contrast:more),(prefers-reduced-transparency:reduce){.sidebar::before{display:none}}
 @media(forced-colors:active){.sidebar::before,.workspace::after{display:none}.sidebar[data-expanded=true] .sidebar-bottom label,.sidebar[data-expanded=true] .sidebar-bottom p,.sidebar[data-expanded=true] .sidebar-meta,.sidebar[data-expanded=true] .sidebar-bottom .text-button{color:CanvasText}.sidebar[data-expanded=true] .sidebar-bottom select{background:Canvas;color:CanvasText;border-color:ButtonBorder}}
+/* Slider trade-offs stay readable at narrow window widths. */
+.range-tradeoffs{display:flex;justify-content:space-between;gap:20px;margin:7px 0 12px;color:var(--muted,#a0a0a0);font-size:11px;line-height:1.5}
+.range-tradeoffs>span{max-width:48%}.range-tradeoffs>span:last-child{text-align:right}

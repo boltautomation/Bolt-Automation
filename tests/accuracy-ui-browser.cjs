@@ -6,6 +6,8 @@ const {MemoryAccounts,MemoryProgress}=require('./memory-stores.cjs');
  const manager=new Manager({accountStore:new MemoryAccounts(),progressStore:new MemoryProgress()});
  const q={id:'fixture',prompt:'Practice question',options:[{id:'a',text:'Source-backed answer'}]};
  manager.state.events=[{type:'answer',question:q,answer:{optionIds:['a'],confidence:.94,crossChecked:true,evidenceQuote:'A source-backed answer for a controlled example.',explanation:'Controlled example.',reviewExplanation:'The second pass supports the same choice.',sources:[]}}];
+ const quotes=['A source-backed answer for a controlled example.','A second passage preserves its exact wording & punctuation.'];
+ manager.state.events[0].answer.evidenceQuotes=quotes.map((text,index)=>({id:`s0:p${index}`,sourceId:'s0',text}));
  manager.state.queue=[{id:'review',title:'Review an unresolved question',status:'needs-attention',error:'Independent source checks disagreed. No guess was submitted.'}];
  const app=await createApp({manager,port:0}),browser=new Browser({headless:true,origins:[app.origin],mouseOptions:{durationScale:0}}),signal=AbortSignal.timeout(25000);
  try{
@@ -16,11 +18,17 @@ const {MemoryAccounts,MemoryProgress}=require('./memory-stores.cjs');
   await browser.command('Input.dispatchMouseEvent',{type:'mouseMoved',x:930,y:80});await wait(250);
   const policy=await browser.evaluate(()=>({checks:document.getElementById('doubleCheck').checked,guesses:document.getElementById('guessWhenStuck').checked,confidence:document.getElementById('confidence').value,delay:document.getElementById('answerDelayMs').value,checked:document.getElementById('quality-checked').textContent,review:document.getElementById('quality-review').textContent}));
   assert.deepEqual(policy,{checks:true,guesses:false,confidence:'90',delay:'3000',checked:'1',review:'1'});
+  assert.equal(await browser.evaluate(()=>document.getElementById('humanizedMouse').checked),false);
+  assert.equal(await browser.evaluate(()=>document.querySelectorAll('.range-tradeoffs > span').length),6);
+  assert.deepEqual(await browser.evaluate(()=>[...document.querySelectorAll('.answer-quote')].map(el=>el.textContent)),quotes);
   await fs.mkdir('test-results',{recursive:true});await fs.writeFile('test-results/accuracy-workspace.png',await browser.screenshot());
   for(const [width,height]of [[320,704],[390,844],[987,704]]){await browser.command('Emulation.setDeviceMetricsOverride',{width,height,deviceScaleFactor:1,mobile:false});await wait(100);assert.equal(await browser.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);}
   assert.equal(await browser.evaluate(()=>document.querySelector('.accuracy-banner,.intended-use-note')),null);
   await browser.clickElement(()=>document.querySelector('[data-tab=settings]'),null,{signal});await wait(220);
   assert.equal(await browser.evaluate(()=>document.getElementById('tab-settings').hidden),false);
+  await browser.command('Emulation.setDeviceMetricsOverride',{width:320,height:704,deviceScaleFactor:1,mobile:false});await wait(100);
+  assert.equal(await browser.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);
+  await browser.command('Emulation.setDeviceMetricsOverride',{width:987,height:704,deviceScaleFactor:1,mobile:false});
   await browser.evaluate(()=>document.getElementById('settings-form').requestSubmit());
   await browser.navigate(app.origin+'/?accuracy=2#settings',signal);await wait(350);
   assert.equal(await browser.evaluate(()=>document.getElementById('guessWhenStuck').checked),false);
@@ -28,6 +36,11 @@ const {MemoryAccounts,MemoryProgress}=require('./memory-stores.cjs');
   await browser.evaluate(()=>{document.getElementById('guessWhenStuck').checked=true;document.getElementById('settings-form').requestSubmit();});
   await browser.navigate(app.origin+'/?accuracy=3#settings',signal);await wait(350);
   assert.equal(await browser.evaluate(()=>document.getElementById('guessWhenStuck').checked),true,'an explicit new choice is preserved');
+  await browser.evaluate(()=>{document.getElementById('humanizedMouse').checked=true;document.getElementById('settings-form').requestSubmit();});
+  await browser.navigate(app.origin+'/?accuracy=4#settings',signal);await wait(350);
+  assert.equal(await browser.evaluate(()=>document.getElementById('humanizedMouse').checked),true);
+  await browser.evaluate(()=>document.getElementById('mouse-settings').scrollIntoView({block:'start'}));
+  await fs.writeFile('test-results/mouse-and-slider-settings.png',await browser.screenshot());
   console.log('PASS legacy settings upgrade, timing preserved, quality counters, banner-free main page, responsive layout, Settings access, persistence and explicit opt-in.');
  }finally{await browser.close();await app.close();}
 })().catch(e=>{console.error(e);process.exitCode=1;});
