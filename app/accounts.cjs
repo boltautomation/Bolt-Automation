@@ -2,7 +2,9 @@ const path=require('node:path');
 const {spawn}=require('node:child_process');
 const {randomUUID}=require('node:crypto');
 const {JsonStore}=require('./storage.cjs');
+const macVault=require('./mac-vault.cjs').createMacVault();
 function crypt(operation,value) {
+  if(process.platform==='darwin')return macVault[operation](value);
   if(process.platform!=='win32')return Promise.reject(new Error('Saved logins require Windows data protection.'));
   return new Promise((resolve,reject)=>{
     const executable=path.join(process.env.SystemRoot||'C:/Windows','System32/WindowsPowerShell/v1.0/powershell.exe');

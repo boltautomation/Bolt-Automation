@@ -1,4 +1,7 @@
 * text=auto
+*.sh text eol=lf
+*.command text eol=lf
+*.yml text eol=lf
 *.png binary
 *.exe binary
 *.zip binary

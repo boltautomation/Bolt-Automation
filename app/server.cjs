@@ -49,7 +49,7 @@ async function createApp({ manager = new Manager(), study=new StudyService(), pr
       if (request.method === 'GET' && staticFiles[route]) {
         const [file, type] = staticFiles[route];
         let content = await fs.readFile(path.resolve(PUBLIC, file));
-        if (route === '/') content = content.toString('utf8').replace('__APP_TOKEN__', token).replace('__STUDY_PANEL__',await fs.readFile(path.join(PUBLIC,'study-panel.html'),'utf8'));
+        if (route === '/') content = content.toString('utf8').replace('__APP_TOKEN__', token).replace('__STUDY_PANEL__',await fs.readFile(path.join(PUBLIC,'study-panel.html'),'utf8')).replaceAll('https://ollama.com/download/windows',process.platform==='darwin'?'https://ollama.com/download/mac':'https://ollama.com/download/windows').replaceAll('Saved passwords and sessions are encrypted for your Windows sign-in.',process.platform==='darwin'?'Saved passwords and sessions are encrypted with a key in your macOS login Keychain.':'Saved passwords and sessions are encrypted for your Windows sign-in.').replaceAll('on this PC','on this computer').replaceAll('Your Windows pointer stays free.','Your system pointer stays free.');
         response.writeHead(200, { 'Content-Type': type }); response.end(content); return;
       }
       const provided = request.headers['x-app-token'];
@@ -108,7 +108,7 @@ async function createApp({ manager = new Manager(), study=new StudyService(), pr
   return { server, manager, study, privacy, origin, token, close: async () => { study.cancel();await privacy.close();await manager.disconnect(); await new Promise(resolve => server.close(resolve)); } };
 }
 if (require.main === module) {
-  const port = Number(process.env.CHATTERHIGH_PORT || 43117);
+  const port = Number(process.env.BOLT_PORT || process.env.CHATTERHIGH_PORT || 43117);
   createApp({ port, open: process.argv.includes('--open') }).then(app => {
     console.log(`Bolt: ${app.origin}`);
     const close = () => app.close().then(() => process.exit(0));

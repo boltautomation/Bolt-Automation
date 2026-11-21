@@ -5,10 +5,10 @@ const {BrowserPrivacy,BLOCKED_URLS}=require('../app/browser-privacy.cjs');
 
 test('browser selection prefers Chrome, supports Brave and never automatically selects Edge',()=>{
   const env={ProgramFiles:'C:/Programs','ProgramFiles(x86)':'C:/Programs32',LOCALAPPDATA:'C:/Local'};
-  assert.equal(findBrowser({env,exists:()=>true}),'C:/Programs/Google/Chrome/Application/chrome.exe');
-  assert.equal(findBrowser({env,exists:file=>file.includes('BraveSoftware')}),'C:/Programs/BraveSoftware/Brave-Browser/Application/brave.exe');
-  assert.throws(()=>findBrowser({env,exists:file=>file.includes('Edge')}),/Install Google Chrome or Brave/);
-  assert.equal(findBrowser({env:{...env,CHATTERHIGH_BROWSER:'C:/Custom/brave.exe'},exists:()=>true}),'C:/Custom/brave.exe');
+  assert.equal(findBrowser({platform:"win32",env,exists:()=>true}),'C:/Programs/Google/Chrome/Application/chrome.exe');
+  assert.equal(findBrowser({platform:"win32",env,exists:file=>file.includes('BraveSoftware')}),'C:/Programs/BraveSoftware/Brave-Browser/Application/brave.exe');
+  assert.throws(()=>findBrowser({platform:"win32",env,exists:file=>file.includes('Edge')}),/Install Google Chrome or Brave/);
+  assert.equal(findBrowser({platform:"win32",env:{...env,CHATTERHIGH_BROWSER:'C:/Custom/brave.exe'},exists:()=>true}),'C:/Custom/brave.exe');
 });
 
 function fixture(strict=true){

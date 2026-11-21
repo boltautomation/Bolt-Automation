@@ -10,9 +10,13 @@ const {BrowserPrivacy}=require('./browser-privacy.cjs');
 const {achievementCloseTarget,achievementStillOpen}=require('./achievements.cjs');
 function disabledAccount(){const error=new SessionRecoveryError('ChatterHigh has disabled or suspended this account. Contact ChatterHigh to resolve it. Your remaining queue is saved.');error.accountDisabled=true;return error;}
 
-function findBrowser({env=process.env,exists=require('node:fs').existsSync}={}) {
+function findBrowser({env=process.env,exists=require('node:fs').existsSync,platform=process.platform}={}) {
   const roots=[env.ProgramFiles||'C:/Program Files',env['ProgramFiles(x86)']||'C:/Program Files (x86)',env.LOCALAPPDATA].filter(Boolean);
-  const candidates=[env.CHATTERHIGH_BROWSER,...roots.map(root=>`${root}/Google/Chrome/Application/chrome.exe`),...roots.map(root=>`${root}/BraveSoftware/Brave-Browser/Application/brave.exe`)].filter(Boolean);
+  const applications=['/Applications',...(env.HOME?[`${env.HOME}/Applications`]:[])];
+  const discovered=platform==='darwin'
+    ? [...applications.map(root=>`${root}/Google Chrome.app/Contents/MacOS/Google Chrome`),...applications.map(root=>`${root}/Brave Browser.app/Contents/MacOS/Brave Browser`)]
+    : [...roots.map(root=>`${root}/Google/Chrome/Application/chrome.exe`),...roots.map(root=>`${root}/BraveSoftware/Brave-Browser/Application/brave.exe`)];
+  const candidates=[env.BOLT_BROWSER,env.CHATTERHIGH_BROWSER,...discovered].filter(Boolean);
   const browser = candidates.find(exists);
   if (!browser) throw new Error('Install Google Chrome or Brave, or set CHATTERHIGH_BROWSER to its executable. Edge is not selected automatically.');
   return browser;
