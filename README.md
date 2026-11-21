@@ -1,4 +1,4 @@
-# Bolt · v1 - oak
+# Bolt
 
 <p align="center"><img src="app/public/assets/bolt-transparent.png" alt="Bolt" width="144"></p>
 
