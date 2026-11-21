@@ -46,7 +46,7 @@ h1,h2,h3,p {margin-top:0}
 .wrap {width:min(1120px,calc(100% - 80px));margin-inline:auto}
 .skip-link {position:fixed;z-index:99;top:12px;left:12px;transform:translateY(-160%);padding:12px 18px;background:#ececec;color:#141414;border-radius:8px}
 .skip-link:focus {transform:none}
-.site-header {height:88px;position:sticky;top:0;z-index:30;background:linear-gradient(180deg,#14141400,#141414 100%),linear-gradient(105deg,#343824,#29331f 55%,#22291d)}
+.site-header {height:88px;position:sticky;top:0;z-index:30;background:transparent;backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px)}
 .header-inner {height:100%;display:flex;align-items:center;justify-content:space-between;gap:28px;border-bottom:1px solid var(--line);position:relative}
 .brand {display:inline-flex;align-items:center;gap:9px;flex-shrink:0}
 .brand img {width:37px;height:34px}
@@ -69,7 +69,6 @@ h1,h2,h3,p {margin-top:0}
 .hero {padding-top:82px;padding-bottom:0}
 .hero-copy {text-align:center;max-width:790px;margin:0 auto}
 .eyebrow {font-size:13px;font-weight:400;line-height:1.7;color:#a5a5a5;margin-bottom:20px;letter-spacing:.1px}
-.hero .eyebrow {display:flex;align-items:center;justify-content:center;gap:9px}
 .status-dot {display:inline-block;width:5px;height:5px;flex-shrink:0;border-radius:50%;background:var(--accent)}
 h1 {font-size:clamp(46px,5.5vw,76px);font-weight:600;line-height:1.12;letter-spacing:-3.7px;margin-bottom:23px}
 h1 span {color:#979797}
@@ -79,16 +78,11 @@ h1 span {color:#979797}
 .download-note span {padding-inline:7px;color:#636363}
 .hero-terms {font-size:12px;color:#818181;line-height:1.8;margin:7px 0 0}
 .hero-terms a {text-decoration:underline;text-underline-offset:3px}
-.hero-product {max-width:1040px;position:relative;margin:55px auto 0;padding:0 5px}
+.hero-product {max-width:1040px;position:relative;isolation:isolate;margin:55px auto 0;padding:0 5px}
+.hero-product:before {content:"";position:absolute;inset:8% 0 -17%;z-index:-1;pointer-events:none;border-radius:50%;background:radial-gradient(ellipse at 50% 78%,#cbdc4459 0%,#a9cc4030 45%,transparent 72%);filter:blur(38px)}
 .app-window {overflow:hidden;border:1px solid #ffffff1c;border-radius:12px;background:#161616;box-shadow:0 25px 70px #0004}
 .screenshot-window {transform:perspective(1800px) rotateX(var(--tilt-x,0deg)) rotateY(var(--tilt-y,0deg));transition:border-color 200ms}
-.window-bar {height:37px;display:flex;align-items:center;justify-content:space-between;gap:16px;padding:0 16px;border-bottom:1px solid #ffffff0c;background:#1b1b1b;font-size:11px;color:#898989}
-.window-dots {display:flex;gap:6px;width:80px}
-.window-dots i {width:6px;height:6px;background:#ffffff16;border-radius:50%}
-.window-platform {width:80px;text-align:right}
 .workspace-shot {display:block;width:100%;height:auto;background:#141414}
-.preview-caption {font-size:12px;line-height:1.8;text-align:center;color:#777;margin-top:18px}
-.preview-caption a {color:#a4a4a4;text-decoration:underline;text-underline-offset:4px;margin-left:5px}
 .inside-section {padding-top:116px;padding-bottom:84px}
 .section-heading {display:flex;justify-content:space-between;align-items:flex-end;gap:40px;margin-bottom:38px}
 .section-heading .eyebrow,.faq-section .eyebrow {margin-bottom:14px}
@@ -153,7 +147,8 @@ h2 {font-size:clamp(32px,3.2vw,44px);line-height:1.2;letter-spacing:-1.8px;font-
 .faq-list details>p {font-size:15px;line-height:1.9;color:#969696;margin:0 20px 23px 0}
 .faq-list a {text-decoration:underline;text-underline-offset:4px;color:#bdbdbd}
 .download-section {padding-bottom:78px}
-.download-panel {display:grid;grid-template-columns:1fr auto;gap:60px;align-items:center;padding:42px 45px;border:1px solid #d2e04d24;background:radial-gradient(ellipse at 0% 100%,#bbcc3d20,transparent 65%),linear-gradient(115deg,#29321a,#1a2114 57%,#171c12);border-radius:23px}
+.download-panel {position:relative;isolation:isolate;overflow:hidden;display:grid;grid-template-columns:1fr auto;gap:60px;align-items:center;padding:42px 45px;border:1px solid #d2e04d24;background:radial-gradient(ellipse at 0% 100%,#bbcc3d20,transparent 65%),linear-gradient(115deg,#29321a,#1a2114 57%,#171c12);border-radius:23px}
+.download-emblem {position:absolute;z-index:-1;pointer-events:none;right:-28px;top:-85px;width:350px;height:330px;object-fit:contain;opacity:.07;transform:rotate(-15deg)}
 .download-panel .button-primary {background:#d7e747;color:#1b210e;border-color:#e4ef6c;box-shadow:0 4px 24px #a9cc400d,inset 0 1px 0 #ffffff3b}
 .download-panel .button-primary:hover {background:#e0ed60;border-color:#e4ef6c}
 .showcase .check-list li:before,.check-steps li>span {color:#c7d955}
@@ -237,7 +232,6 @@ h2 {font-size:clamp(32px,3.2vw,44px);line-height:1.2;letter-spacing:-1.8px;font-
   .nav-links[data-open=true] {display:flex}
   .nav-links a {padding:13px 12px;font-size:14px}
   .hero {padding-top:50px}
-  .hero .eyebrow {font-size:12px;margin-bottom:20px}
   h1 {font-size:clamp(36px,9.5vw,52px);letter-spacing:-1.9px;line-height:1.17;margin-bottom:21px}
   .hero-intro {font-size:16px;line-height:1.8;max-width:350px;margin:0 auto 24px}
   .hero-intro br {display:none}
@@ -248,12 +242,8 @@ h2 {font-size:clamp(32px,3.2vw,44px);line-height:1.2;letter-spacing:-1.8px;font-
   .hero-terms {max-width:270px;margin-inline:auto}
   .hero-product {margin-top:38px;padding:0}
   .app-window {border-radius:8px;box-shadow:0 16px 45px #0003}
-  .window-bar {height:29px;padding:0 10px;font-size:10px;gap:8px}
-  .window-dots {width:45px;gap:4px}
-  .window-dots i {width:4px;height:4px}
-  .window-platform {width:45px}
   .screenshot-window {transform:none}
-  .preview-caption {font-size:12px;margin-top:14px}
+  .hero-product:before {inset:8% 0 -17%;filter:blur(24px)}
   .inside-section {padding-top:67px;padding-bottom:55px}
   .section-heading {display:block;margin-bottom:26px}
   .section-heading h2,h2 {font-size:32px;letter-spacing:-1.2px}
@@ -281,6 +271,7 @@ h2 {font-size:clamp(32px,3.2vw,44px);line-height:1.2;letter-spacing:-1.8px;font-
   .faq-list details>p {font-size:15px;margin-right:0}
   .download-section {padding-bottom:52px}
   .download-panel {padding:28px 23px;border-radius:17px;gap:27px}
+  .download-emblem {width:240px;height:225px;right:-45px;top:-58px;opacity:.06}
   .download-content h2 {font-size:30px;letter-spacing:-1px}
   .download-content>p:not(.eyebrow) {font-size:16px}
   .download-content>p br {display:none}
