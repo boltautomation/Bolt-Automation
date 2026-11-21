@@ -17,7 +17,7 @@ Bolt is independent software and is not affiliated with, sponsored by, or endors
 
 ## Start
 
-For a ready-to-run Windows x64 copy, extract the complete **releases/Bolt-v1-oak.1-Windows-x64.zip** package and double-click **Start Bolt.cmd** inside its **Bolt** folder. Node.js and PDF-reading dependencies are included; you do not need npm or a separate Node installation. Keep the launcher, tools, and resources folders together. The package's own README is a short quick-start guide.
+For a ready-to-run Windows x64 copy, extract the complete **releases/Bolt-v1.1-oak-Windows-x64.zip** package and double-click **Start Bolt.cmd** inside its **Bolt** folder. Node.js and PDF-reading dependencies are included; you do not need npm or a separate Node installation. Keep the launcher, tools, and resources folders together. The package's own README is a short quick-start guide.
 
 Google Chrome (preferred) or Brave is required for the interface and activity browser. The launcher explains if neither is available. Install [Ollama for Windows](https://ollama.com/download/windows) once for local AI; the launcher starts an installed Ollama service when possible. If the service or a model is missing, **Finish setup** appears in the app with **Get Ollama**, **Check again**, **Download model**, and **Model settings** as appropriate. Choose Download model to fetch the default qwen3:4b model (about 2.5 GB), or choose an already-downloaded local model in Settings. No model download begins automatically. Cloud models remain disabled.
 
@@ -149,7 +149,7 @@ The signed-in catalog was verified against the real site and returned 188 module
 
 ## Development
 
-Run the commands below from the project root. Build a clean distribution with `powershell -NoProfile -ExecutionPolicy Bypass -File tools/Build-Bolt.ps1` (or `npm run package:windows`). The builder includes the bundled runtime and dependency license notices and writes **releases/Bolt-v1-oak.1-Windows-x64.zip**, a SHA-256 checksum, and an internal file manifest. Older builds remain in **releases/previous/**. Tests and backups are kept out of the distribution. Test the built package with `node tests/package-smoke.cjs`.
+Run the commands below from the project root. Build a clean distribution with `powershell -NoProfile -ExecutionPolicy Bypass -File tools/Build-Bolt.ps1` (or `npm run package:windows`). The builder includes the bundled runtime and dependency license notices and writes **releases/Bolt-v1.1-oak-Windows-x64.zip**, a SHA-256 checksum, and an internal file manifest. Older builds remain in **releases/previous/**. Tests and backups are kept out of the distribution. Test the built package with `node tests/package-smoke.cjs`.
 
 ```text
 node app/server.cjs --open
@@ -189,7 +189,7 @@ The local inference integration follows [Ollama's Chat API](https://docs.ollama.
 
 ## macOS setup
 
-Choose **Bolt-v1-oak.1-macOS-arm64.zip** for Apple Silicon or **Bolt-v1-oak.1-macOS-x64.zip** for Intel, extract the full folder, and open **Start Bolt.command**. macOS 14 or newer, Chrome or Brave, and [Ollama for Mac](https://ollama.com/download/mac) are required. Ollama supports CPU/GPU inference on Apple Silicon and CPU inference on Intel Macs; Intel generation can be slower. See [Ollama’s Mac requirements](https://docs.ollama.com/macos). Runtime and PDF tools are bundled. The launcher is unsigned/not notarized; macOS may request approval through Privacy & Security. Verify the package checksum before allowing it, and do not disable Gatekeeper globally.
+Choose **Bolt-v1.1-oak-macOS-arm64.zip** for Apple Silicon or **Bolt-v1.1-oak-macOS-x64.zip** for Intel, extract the full folder, and open **Start Bolt.command**. macOS 14 or newer, Chrome or Brave, and [Ollama for Mac](https://ollama.com/download/mac) are required. Ollama supports CPU/GPU inference on Apple Silicon and CPU inference on Intel Macs; Intel generation can be slower. See [Ollama’s Mac requirements](https://docs.ollama.com/macos). Runtime and PDF tools are bundled. The launcher is unsigned/not notarized; macOS may request approval through Privacy & Security. Verify the package checksum before allowing it, and do not disable Gatekeeper globally.
 
 The launcher starts an installed Ollama service and opens the same local desktop interface. It discovers Chrome/Brave in /Applications and ~/Applications. `BOLT_BROWSER` can specify a full browser executable path; `CHATTERHIGH_BROWSER` remains supported. `BOLT_PORT` or the legacy `CHATTERHIGH_PORT` changes the local port. No Accessibility permission is needed for the cursor inside Chrome.
 
