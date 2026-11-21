@@ -1,6 +1,6 @@
 # Bolt promo site
 
-A buildless, responsive promotional site using Bolt's charcoal and yellow-green branding. Static HTML, CSS, and JavaScript; no analytics, forms, cookies, backend, or hosted AI calls.
+A buildless, responsive promotional site using the desktop UI's exact **#141414** background, neutral surfaces, and a restrained yellow-green logo accent. The layout centers the real screenshot, keeps copy concise, and combines the feature details into one tabbed workspace section. Static HTML, CSS, and JavaScript; no analytics, forms, cookies, backend, or hosted AI calls.
 
 Production: **https://bolt-automation.vercel.app**. Vercel project: **bolt-automation**, ID **prj_dRR68XD4me2xFwzrPo324YPkGmXb**, in **johnasdr39-1559s-projects**. Production is public; preview deployments retain Vercel Authentication. The initial release was uploaded through the Vercel API; GitHub pushes do not automatically redeploy this project. Upload only this directory's deployable files for future releases, or explicitly configure the Git integration with **website** as its root directory.
 

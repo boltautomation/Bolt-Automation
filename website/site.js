@@ -54,8 +54,8 @@ document.querySelectorAll('[data-parallax]').forEach(surface => {
     const box = surface.getBoundingClientRect();
     const x = Math.max(-1, Math.min(1, (event.clientX - box.left) / box.width * 2 - 1));
     const y = Math.max(-1, Math.min(1, (event.clientY - box.top) / box.height * 2 - 1));
-    targetX = -y * 3;
-    targetY = x * 4;
+    targetX = -y * 1.6;
+    targetY = x * 2.2;
     schedule();
   }, { passive: true });
   surface.addEventListener('pointerleave', reset);
