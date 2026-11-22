@@ -37,5 +37,5 @@ const release=require('../package.json');
   await evaluate(`window.testWindowStates=[];window.boltDesktop.onState(state=>window.testWindowStates.push(state));document.querySelector('#window-minimize').click()`);await until('window.testWindowStates.some(state=>state.minimized)','Minimize did not finish');await evaluate(`document.querySelector('#window-close').click()`);
   for(let n=0;n<60&&child.exitCode===null;n++)await wait(100);assert.equal(child.exitCode,0);let stopped=false;try{await fetch(origin+'/health',{signal:AbortSignal.timeout(600)});}catch{stopped=true;}assert.ok(stopped,'Closing desktop stops its owned local backend');
   console.log('PASS native Bolt launch, isolated renderer, custom title bar, glass sidebar, continuous and rapid highlight transitions, reduced motion, persistent controls, maximize/restore/minimize/close, actual PDF worker and backend shutdown');
- }finally{protocol?.socket.close();if(child.exitCode===null)child.kill();}
+ }finally{protocol?.socket.close();if(child.exitCode===null)child.kill();child.stdout.destroy();child.stderr.destroy();}
 })().catch(error=>{console.error(error.stack);process.exitCode=1;});
