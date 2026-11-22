@@ -2,7 +2,7 @@ name: Build and publish Bolt release
 on:
   push:
     branches: [main]
-    paths: [package.json, .github/workflows/release.yml, tests/desktop-smoke.cjs]
+    paths: [package.json, .github/workflows/release.yml, tests/desktop-smoke.cjs, 'tools/Build-Bolt*', tools/package-manifest.cjs]
   workflow_dispatch:
 
 permissions:

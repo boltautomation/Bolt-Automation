@@ -1,5 +1,11 @@
 param([string]$OutputDirectory)
 $ErrorActionPreference = 'Stop'
+function Get-BoltSha256([string]$Path) {
+    $stream = [IO.File]::OpenRead($Path)
+    $hasher = [Security.Cryptography.SHA256]::Create()
+    try { return ([BitConverter]::ToString($hasher.ComputeHash($stream))).Replace('-', '').ToLowerInvariant() }
+    finally { $stream.Dispose(); $hasher.Dispose() }
+}
 $projectRoot = Split-Path -Parent $PSScriptRoot
 if (-not $OutputDirectory) { $OutputDirectory = Join-Path $projectRoot 'releases' }
 $outputRoot = [IO.Path]::GetFullPath($OutputDirectory)
@@ -61,13 +67,13 @@ Bolt defaults to two source-based answer checks and guesses off. Unsupported or 
     $packageReadme = $packageReadme.Replace('# Bolt - ready to run', ('# Bolt - ' + $packageMetadata.versionName))
     Set-Content -LiteralPath (Join-Path $bundle 'README.md') -Value $packageReadme -Encoding UTF8
     $files = @(Get-ChildItem -LiteralPath $bundle -File -Recurse | Sort-Object FullName | ForEach-Object {
-        [ordered]@{ path = $_.FullName.Substring($bundle.Length + 1).Replace('\','/'); bytes = $_.Length; sha256 = (Get-FileHash -LiteralPath $_.FullName -Algorithm SHA256).Hash.ToLowerInvariant() }
+        [ordered]@{ path = $_.FullName.Substring($bundle.Length + 1).Replace('\','/'); bytes = $_.Length; sha256 = Get-BoltSha256 $_.FullName }
     })
     [ordered]@{ product='Bolt'; version=$packageMetadata.version; versionName=$packageMetadata.versionName; platform='win32'; architecture=$architecture; node=$runtimeVersion; builtAt=[DateTime]::UtcNow.ToString('o'); files=$files } | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath (Join-Path $bundle 'package-manifest.json') -Encoding UTF8
     Add-Type -AssemblyName System.IO.Compression.FileSystem
     [IO.Compression.ZipFile]::CreateFromDirectory($stage, $zipTemp, [IO.Compression.CompressionLevel]::Optimal, $false)
     Move-Item -LiteralPath $zipTemp -Destination $zipPath -Force
-    $checksum = (Get-FileHash -LiteralPath $zipPath -Algorithm SHA256).Hash.ToLowerInvariant()
+    $checksum = Get-BoltSha256 $zipPath
     Set-Content -LiteralPath ($zipPath + '.sha256') -Value "$checksum  $zipName" -Encoding ASCII
     Write-Output "Built $zipPath ($($files.Count) files, bundled Node $runtimeVersion)."
 } finally {

@@ -22,7 +22,7 @@ const {testPdf}=require('./pdf-fixture.cjs');
     const manifest=JSON.parse(await fs.readFile(path.join(bundle,'package-manifest.json'),'utf8'));
     assert.equal(manifest.platform,'darwin');assert.equal(manifest.architecture,process.arch);
     assert.equal(manifest.versionName,require('../package.json').versionName);
-    for(const file of manifest.files){assert.ok(!file.path.split('/').includes('..'));assert.ok(!/(^|\/)(\.app-runtime|tests|test-results)(\/|$)/.test(file.path));const data=await fs.readFile(path.join(bundle,file.path));assert.equal(createHash('sha256').update(data).digest('hex'),file.sha256,file.path);}
+    for(const file of manifest.files){assert.ok(!file.path.split('/').includes('..'));assert.ok(!/(^|\/)(\.app-runtime|tests|test-results)(\/|$)/.test(file.path));const target=path.join(bundle,file.path);let data;if(file.kind==='symlink'){const link=await fs.readlink(target);assert.equal(link,file.target);assert.ok(!path.isAbsolute(link));const resolved=await fs.realpath(target);assert.ok(resolved.startsWith(bundle+path.sep));data=Buffer.from(link);}else data=await fs.readFile(target);assert.equal(createHash('sha256').update(data).digest('hex'),file.sha256,file.path);}
     const checked=execFileSync('/bin/bash',[path.join(bundle,'Start Bolt.command'),'--check'],{cwd:temp,encoding:'utf8',env:{...process.env,PATH:'/usr/bin:/bin:/usr/sbin:/sbin'},timeout:15000});assert.equal(JSON.parse(checked.trim()).ok,true);
     const fixture=path.join(temp,'fixture.pdf');await fs.writeFile(fixture,testPdf(['Bolt macOS PDF package test with searchable local study evidence.']));
     const exercise=String.raw`
