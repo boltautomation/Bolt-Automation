@@ -26,11 +26,12 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm test
+      - run: node tests/desktop-smoke.cjs
       - run: npm run package:macos
       - run: node tests/mac-package-smoke.cjs
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
-          name: Bolt-v1.1-oak-macOS-${{ matrix.arch }}
+          name: Bolt-macOS-${{ matrix.arch }}-${{ github.sha }}
           path: |
             releases/*-macOS-${{ matrix.arch }}.zip
             releases/*-macOS-${{ matrix.arch }}.zip.sha256

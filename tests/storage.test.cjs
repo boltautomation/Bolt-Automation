@@ -21,9 +21,13 @@ test('completion, queue, and checked selections persist without crossing account
   const dir=await directory(t,'progress-test-'),file=path.join(dir,'progress.json'),store=new ProgressStore({file});
   const module={id:'https://chatterhigh.com/modules/1',title:'Example',course:'Course',answered:1,total:3,completed:false};
   await store.sync('first@example.test',[module]);await store.selection('first@example.test',[module.id]);
-  await store.update('first@example.test',module.id,{status:'completed',answered:3,completedAt:new Date().toISOString()});await store.queue('first@example.test',[{id:module.id,status:'completed'}]);
+  const score={correct:2,total:3,source:'site'};
+  await store.update('first@example.test',module.id,{status:'completed',answered:3,score,completedAt:new Date().toISOString()});await store.queue('first@example.test',[{id:module.id,status:'completed',score}]);
   const reopened=new ProgressStore({file}),data=await reopened.get('first@example.test');assert.equal(data.items[module.id].status,'completed');assert.deepEqual(data.selected,[module.id]);assert.equal(data.queue[0].status,'completed');assert.deepEqual((await reopened.get('other@example.test')).items,{});
+  assert.deepEqual(data.items[module.id].score,score);assert.deepEqual(data.queue[0].score,score);
+  const refreshed=await reopened.sync('first@example.test',[{...module,answered:3,completed:true}]);assert.deepEqual(refreshed.items[module.id].score,score);
   const authoritative=await reopened.sync('first@example.test',[module]);assert.equal(authoritative.items[module.id].status,'pending');
+  assert.equal(authoritative.items[module.id].score,null,'a reset module cannot retain an old correctness score');
 });
 test('default app window fits smaller and high-DPI work areas',()=>{
   for(const area of [{x:0,y:0,width:1920,height:1040},{x:0,y:0,width:1366,height:728},{x:0,y:0,width:1024,height:680},{x:-1280,y:0,width:1280,height:720}]){

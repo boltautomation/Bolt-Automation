@@ -2,7 +2,7 @@ const path=require('node:path');
 const {createHash}=require('node:crypto');
 const {JsonStore}=require('./storage.cjs');
 class ProgressStore {
-  constructor({file=path.resolve(__dirname,'../.app-runtime/progress.json')}={}){this.store=new JsonStore(file,{version:1,accounts:{}});}
+  constructor({file=require('./runtime-path.cjs').dataFile('progress.json')}={}){this.store=new JsonStore(file,{version:1,accounts:{}});}
   key(email){return createHash('sha256').update(String(email).trim().toLowerCase()).digest('hex');}
   account(data,email){return data.accounts[this.key(email)]||=( {items:{},selected:[],queue:[]} );}
   async get(email){return (await this.store.read()).accounts[this.key(email)]||{items:{},selected:[],queue:[]};}
@@ -12,7 +12,7 @@ class ProgressStore {
       const old=account.items[module.id]||{};
       let status=module.completed?'completed':old.status||'pending';
       if(module.total&&module.answered<module.total&&status==='completed')status='pending';
-      account.items[module.id]={...old,id:module.id,title:module.title,course:module.course||'',total:module.total||null,answered:module.answered??old.answered??0,status,completedAt:status==='completed'?(old.completedAt||now):null,updatedAt:now};
+      account.items[module.id]={...old,id:module.id,title:module.title,course:module.course||'',total:module.total||null,answered:module.answered??old.answered??0,score:module.completed&&old.score?.total===module.total?old.score:null,status,completedAt:status==='completed'?(old.completedAt||now):null,updatedAt:now};
     }
     return structuredClone(account);
   });}

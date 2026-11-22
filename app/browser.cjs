@@ -61,7 +61,7 @@ class Protocol {
   }
 }
 class Browser {
-  constructor({ runtimeRoot = path.resolve(__dirname, '../.app-runtime'), headless = false, origins = ['https://chatterhigh.com', 'https://www.chatterhigh.com'], executable, mouseOptions = {}, launchArgs=[], strictPrivacy=process.env.CHATTERHIGH_STRICT_PRIVACY==='1' } = {}) {
+  constructor({ runtimeRoot = require('./runtime-path.cjs').dataRoot(), headless = false, origins = ['https://chatterhigh.com', 'https://www.chatterhigh.com'], executable, mouseOptions = {}, launchArgs=[], strictPrivacy=process.env.CHATTERHIGH_STRICT_PRIVACY==='1' } = {}) {
     Object.assign(this, { runtimeRoot: path.resolve(runtimeRoot), headless, origins, executable, mouseOptions,launchArgs,strictPrivacy });
   }
   allowed(url) { try { return this.origins.includes(new URL(url).origin); } catch { return false; } }
@@ -169,10 +169,13 @@ class Browser {
     if(choice?.available)await this.clickElement(()=>globalThis.__boltCookieReject,null,{signal,requireSite:false});
   }
   async url() { return (await this.command('Page.getFrameTree')).frameTree.frame.url; }
-  async evaluate(fn, argument, { requireSite = true } = {}) {
+  async evaluate(fn, argument, { requireSite = true,frameId } = {}) {
     const { frameTree } = await this.command('Page.getFrameTree');
-    if (requireSite && !this.allowed(frameTree.frame.url)) throw new Error('The browser is outside ChatterHigh. Finish signing in, then continue.');
-    const { executionContextId } = await this.command('Page.createIsolatedWorld', { frameId: frameTree.frame.id, worldName: 'ChatterHighLocalApp' });
+    const find=tree=>tree.frame.id===frameId?tree.frame:(tree.childFrames||[]).map(find).find(Boolean);
+    const frame=frameId?find(frameTree):frameTree.frame;
+    if(!frame)throw new Error('The source frame is no longer available.');
+    if (requireSite && !this.allowed(frame.url)) throw new Error('The browser is outside ChatterHigh. Finish signing in, then continue.');
+    const { executionContextId } = await this.command('Page.createIsolatedWorld', { frameId: frame.id, worldName: 'ChatterHighLocalApp' });
     const expression = typeof fn === 'function' ? `(${fn.toString()})(${JSON.stringify(argument)})` : fn;
     const result = await this.command('Runtime.evaluate', { expression, contextId: executionContextId, returnByValue: true, awaitPromise: true, userGesture: true });
     if (result.exceptionDetails) throw new Error('The page changed or its controls could not be read. Check the automation browser and try again.');
@@ -420,9 +423,37 @@ class Browser {
       await onOpened();signal.throwIfAborted();
     }finally{if(targetId)await this.closeResearchTarget(targetId);}
   }
-  async researchSources(question, signal, {refresh=false,onOpened=async()=>{}}={}) {
+  async embeddedResearch(loaded,question,signal){
+    const {publicUrl}=require('./sources.cjs'),{readResearchPage}=require('./research-page.cjs'),{youtubeId}=require('./video-sources.cjs');
+    const terms=new Set(((question.prompt||question.text||'')+' '+(question.options||[]).map(o=>o.text).join(' ')).toLowerCase().match(/[a-z]{4,}/g)||[]);
+    const candidates=(loaded.media?.embeds||[]).filter(embed=>{try{const u=publicUrl(embed.url);return u.href!==loaded.url&&!/googleapis|doubleclick|googlesyndication|facebook|hotjar/i.test(u.hostname);}catch{return false;}}).sort((a,b)=>[...terms].filter(w=>(b.title||'').toLowerCase().includes(w)).length-[...terms].filter(w=>(a.title||'').toLowerCase().includes(w)).length);
+    for(const embed of candidates.slice(0,1)){
+      let targetId;
+      try{
+        const yt=youtubeId(embed.url),url=yt?'https://www.youtube.com/watch?v='+yt:embed.url;
+        targetId=(await this.protocol.send('Target.createTarget',{url,browserContextId:this.contextId,background:true})).targetId;
+        const {sessionId}=await this.protocol.send('Target.attachToTarget',{targetId,flatten:true}),page=Object.assign(Object.create(Browser.prototype),{protocol:this.protocol,sessionId,targetId,contextId:this.contextId,origins:this.origins,mouseOptions:this.mouseOptions});
+        let content,clicks=0;
+        for(let step=0;step<25;step++){
+          signal.throwIfAborted();await wait(200,undefined,{signal});
+          try{content=await page.evaluate(readResearchPage,{prompt:question.prompt||question.text,options:question.options,plan:true},{requireSite:false});}catch{continue;}
+          if(!content)continue;
+          if(yt){
+            if(content.media?.transcripts?.length)return content;
+            if(content.mouseControls?.length&&clicks<3){await page.command('Page.bringToFront');await page.clickElement(()=>globalThis.__boltResearchControls?.[0],null,{signal,requireSite:false});clicks++;}
+          }else if(content.media?.images?.length||!/visme\.co$/.test(new URL(url).hostname)&&content.text?.length>300){
+            if(/\bdownload\s+pdf\b|continue to publication/i.test(content.text||''))content.documentSources=await require('./resource-download.cjs').readDownloadedPdf(page,question,signal);
+            return content;
+          }
+        }
+        if(content)return content;
+      }finally{if(targetId)await this.closeResearchTarget(targetId);}
+    }
+    return null;
+  }
+  async researchSources(question, signal, {refresh=false,onOpened=async()=>{},onRead=()=>{},vision=false,visionBaseUrl}={}) {
     await this.assertSession();
-    const { publicUrl, excerpts, normalize } = require('./sources.cjs');
+    const { publicUrl, excerpts, normalize,sourceIssue,archiveNotice } = require('./sources.cjs');
     const {readResearchPage}=require('./research-page.cjs');
     const sources = [];
     let lastError;
@@ -432,26 +463,99 @@ class Browser {
       try {
         targetId=await this.openResearchLink(question,link,signal);
         const { sessionId } = await this.protocol.send('Target.attachToTarget', { targetId, flatten: true });
-        const page = Object.assign(Object.create(Browser.prototype), { protocol: this.protocol, sessionId, origins: this.origins,mouseOptions:this.mouseOptions,privacy:this.privacy,strictPrivacy:this.strictPrivacy });
+        const page = Object.assign(Object.create(Browser.prototype), { protocol: this.protocol, sessionId,targetId,contextId:this.contextId, origins: this.origins,mouseOptions:this.mouseOptions,privacy:this.privacy,strictPrivacy:this.strictPrivacy });
         await page.command('Page.bringToFront');
         await onOpened();
         signal.throwIfAborted();
-        let loaded;
+        let loaded,directDocuments=[];
         for (let attempt = 0; attempt < 60; attempt++) {
           if(attempt)await wait(Math.min(250,50*attempt),undefined,{signal});
           try {
-            const currentUrl = await page.url(); if(currentUrl==='about:blank')continue; publicUrl(currentUrl);
+            const currentFrame=(await page.command('Page.getFrameTree')).frameTree.frame,currentUrl=currentFrame.url; if(!currentUrl||currentUrl==='about:blank')continue;
+            if(!/^https?:\/\//i.test(currentUrl))throw new Error('The source website could not finish loading ('+currentUrl.split(':')[0]+').');
+            publicUrl(currentUrl);
+            if(/\.pdf$/i.test(new URL(currentUrl).pathname)||currentFrame.mimeType==='application/pdf'){
+              this.documentCache||=new Map();
+              question.researchContext={...question.researchContext,sourceTitle:'PDF document',sourceUrl:currentUrl};
+              await onRead({url:currentUrl,title:'PDF document',document:true});
+              directDocuments=await require('./document-sources.cjs').loadDocumentSources({url:currentUrl,document:true},question,signal,{cache:this.documentCache,onError:issue=>onRead({...issue,title:'PDF reading failed',document:true}),downloader:async(url,s)=>{try{return await require('./sources.cjs').download(url,s,0,'research-pdf');}catch(error){s.throwIfAborted();return require('./resource-download.cjs').browserPdfBytes(page,url,s);}}});
+              break;
+            }
             if(this.allowed(currentUrl))await page.assertSession();
             await page.rejectOptionalCookies(signal);
-            loaded = await page.evaluate(readResearchPage, {prompt:question.prompt||question.text,expand:refresh?true:'focused',plan:true}, { requireSite: false });
-            if (loaded?.text?.length > 80) break;
+            loaded = await page.evaluate(readResearchPage, {prompt:question.prompt||question.text,options:question.options,expand:refresh?true:'focused',plan:true}, { requireSite: false });
+            if (loaded?.text?.length > 80||loaded?.mouseControls?.length||loaded?.media?.transcripts?.length||loaded?.media?.tracks?.length) break;
           } catch(error) {signal.throwIfAborted();if(error.code==='SESSION_EXPIRED')throw error;lastError=error;}
         }
-        if(loaded&&(loaded.mouseControls?.length||refresh)){
-          for(const index of loaded.mouseControls||[])await page.clickElement(index=>globalThis.__boltResearchControls?.[index],index,{signal,requireSite:false});
-          await wait(500,undefined,{signal});loaded=await page.evaluate(readResearchPage,{prompt:question.prompt||question.text},{requireSite:false});
+        for(const source of directDocuments)sources.push({...source,id:`s${sources.length}`});
+        if(loaded&&require('./video-sources.cjs').youtubeId(loaded.url)&&!loaded.text&&!loaded.mouseControls?.length){
+          for(let hydrate=0;hydrate<15;hydrate++){await wait(150,undefined,{signal});loaded=await page.evaluate(readResearchPage,{prompt:question.prompt||question.text,options:question.options,plan:true},{requireSite:false});if(loaded?.text||loaded?.mouseControls?.length)break;}
         }
-        if (loaded?.text?.length > 80) sources.push({ id: `s${sources.length}`, url: loaded.url, title: loaded.title || new URL(loaded.url).hostname, text: excerpts(normalize(loaded.text), question, 12000), sections:loaded.sections, focused:loaded.focused });
+        for(let expansion=0;loaded&&(loaded.mouseControls?.length||refresh&&expansion===0)&&expansion<3;expansion++){
+          for(const index of loaded.mouseControls||[])await page.clickElement(index=>globalThis.__boltResearchControls?.[index],index,{signal,requireSite:false});
+          await wait(500,undefined,{signal});loaded=await page.evaluate(readResearchPage,{prompt:question.prompt||question.text,options:question.options,plan:true},{requireSite:false});
+        }
+        if(loaded)await onRead(loaded);
+        if(loaded){question.researchContext={...question.researchContext,sourceTitle:loaded.title,sourceUrl:loaded.url};if(sourceIssue(loaded)&&!archiveNotice(loaded)){lastError=new Error(sourceIssue(loaded));continue;}}
+        if(loaded?.media?.tracks?.length&&!loaded.media.transcripts?.length&&require('./video-sources.cjs').youtubeId(loaded.url)){
+          const tracks=loaded.media.tracks.filter(t=>/^en(?:-|$)|english/i.test(t.srclang||t.label||'')).slice(0,1).filter(t=>{try{return publicUrl(t.src).hostname===new URL(loaded.url).hostname;}catch{return false;}});
+          const bodies=await page.evaluate(async tracks=>Promise.all(tracks.map(async track=>{try{const response=await fetch(track.src,{credentials:'omit',signal:AbortSignal.timeout(3000)});return response.ok?(await response.text()).slice(0,1000000):'';}catch{return '';}})),tracks,{requireSite:false});
+          const {captionText}=require('./video-sources.cjs');
+          loaded.media.transcripts=bodies.map(content=>({text:captionText(content)})).filter(t=>t.text.length>30);
+        }
+        if (loaded?.text?.length > 80&&!sourceIssue(loaded)) sources.push({ id: `s${sources.length}`, url: loaded.url, title: loaded.title || new URL(loaded.url).hostname, text: excerpts(normalize(loaded.text), question, 12000), sections:loaded.sections, focused:loaded.focused });
+        let captions=[],embeddedRead=false;
+        if(loaded?.media&&(loaded.media.embeds?.length||loaded.media.tracks?.length||loaded.media.transcripts?.length||require('./video-sources.cjs').youtubeId(loaded.url))&&sources.length<3){
+          this.videoCache||=new Map();
+          if(loaded.media.embeds?.some(embed=>require('./video-sources.cjs').youtubeId(embed.url))){
+            embeddedRead=true;const embedded=await this.embeddedResearch(loaded,question,signal);
+            if(embedded?.media?.transcripts?.length)captions=embedded.media.transcripts.map(t=>({url:embedded.url,title:embedded.title+' · transcript',text:t.text,kind:'transcript'}));
+          }
+          if(!captions.length)captions=await require('./video-sources.cjs').loadVideoSources(loaded,signal,{cache:this.videoCache,maxSources:3-sources.length,question});
+          for(const source of captions)sources.push({...source,id:`s${sources.length}`,text:excerpts(source.text,question,12000)});
+        }
+        if(loaded?.media?.documents?.length&&sources.length<3){
+          this.documentCache||=new Map();
+          const documents=await require('./document-sources.cjs').loadDocumentSources(loaded,question,signal,{cache:this.documentCache,maxSources:Math.min(1,3-sources.length)});
+          for(const source of documents)sources.push({...source,id:`s${sources.length}`});
+        }
+        if(loaded&&sources.length<3&&/\bdownload\s+pdf\b|continue to publication/i.test(loaded.text||'')){
+          const documents=await require('./resource-download.cjs').readDownloadedPdf(page,question,signal);
+          for(const source of documents)sources.push({...source,id:`s${sources.length}`});
+        }
+        if(!captions.length&&!embeddedRead&&loaded?.media?.embeds?.length&&sources.length<3){
+          const embedded=await this.embeddedResearch(loaded,question,signal);
+          for(const source of embedded?.documentSources||[])sources.push({...source,id:`s${sources.length}`});
+          if(embedded?.media?.images?.length)loaded.media.images=[...(loaded.media.images||[]),...embedded.media.images];
+          if(embedded?.media?.transcripts?.length){captions=embedded.media.transcripts.map(t=>({url:embedded.url,title:embedded.title+' · transcript',text:t.text,kind:'transcript'}));for(const source of captions)sources.push({...source,id:`s${sources.length}`,text:excerpts(source.text,question,12000)});}
+        }
+        const frames=(await page.command('Page.getFrameTree')).frameTree.childFrames||[];
+        for(const child of frames.slice(0,8)){
+          if(sources.length>=3)break;
+          let url;try{url=publicUrl(child.frame.url);}catch{continue;}
+          if(/doubleclick|googleapis|googlesyndication|google-analytics|facebook|hotjar/i.test(url.hostname))continue;
+          if(!loaded?.media?.embeds?.some(embed=>{try{return new URL(embed.url).origin===url.origin;}catch{return false;}}))continue;
+          try{
+            const embedded=await page.evaluate(readResearchPage,{prompt:question.prompt||question.text,options:question.options,plan:false},{requireSite:false,frameId:child.frame.id});
+            if(embedded?.media?.images?.length){loaded.media.images=[...(loaded.media.images||[]),...embedded.media.images];}
+            if(embedded?.text?.length>120&&!sources.some(source=>source.url===embedded.url))sources.push({id:`s${sources.length}`,url:embedded.url,title:embedded.title||'Embedded document',text:excerpts(normalize(embedded.text),question,9000)});
+          }catch{signal.throwIfAborted();}
+        }
+        if(loaded?.media?.images?.length&&sources.length<3&&/\b(?:image|images|comic|infographic|stats|facts|page|diagram)\b/i.test(question.prompt||question.text)){
+          this.imageCache||=new Map();
+          const images=await require('./image-sources.cjs').loadImageSources(loaded,question,signal,{cache:this.imageCache,maxSources:8});
+          if(images.length)sources.push({id:`s${sources.length}`,url:loaded.url,title:(loaded.title||'Research')+' · image text (OCR)',kind:'image-ocr',text:excerpts(images.map(image=>`[${image.title}]\n${image.text}`).join('\n\n'),question,12000),imageUrls:images.map(image=>image.url)});
+        }
+        if(vision&&loaded?.media?.images?.length&&/\b(?:images?|comic|diagram|picture|map|chart|figure)\b/i.test(question.prompt||question.text)){
+          this.visionCache||=new Map();
+          const observation=await require('./vision-sources.cjs').describeVisualSource(loaded,question,signal,{baseUrl:visionBaseUrl,cache:this.visionCache});
+          if(observation)question.researchContext={...question.researchContext,visualObservation:observation};
+        }
+        if(!captions.length&&!sources.some(s=>s.kind==='image-ocr')&&loaded?.navigation?.length&&!this.allowed(loaded.url)&&sources.length<3&&(refresh||loaded.navigation[0].score>=2)){
+          const {followResearchLinks}=require('./research-navigation.cjs');
+          const linked=await followResearchLinks(page,question,loaded,signal,{maxPages:Math.min(refresh?2:1,3-sources.length),budgetMs:refresh?12000:7000});
+          for(const source of linked)if(!sources.some(s=>s.url===source.url))sources.push({id:`s${sources.length}`,url:source.url,title:source.title,text:excerpts(normalize(source.text),question,12000),sections:source.sections,focused:source.focused});
+        }
         if (sources.length === 3) break;
       } catch(error) { signal.throwIfAborted();if(error.code==='SESSION_EXPIRED')throw error;lastError=error; }
       finally { if (targetId) await this.closeResearchTarget(targetId); }

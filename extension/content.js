@@ -126,7 +126,7 @@
     const result = {
       url: location.href, title: document.title, questions,
       fingerprint: C.fingerprint([location.origin + location.pathname + location.search, questions.map(({id,prompt,multiple,options,links})=>({id,prompt,multiple,options,links:links.map(link=>link.url)}))]),
-      submitCount: submit.length, nextCount: next.length, complete, feedback,
+      submitCount: submit.length, nextCount: next.length, complete, feedback,score:complete?C.siteScore(body):null,
       message: complete ? "Quiz completed." : questions.length ? `${questions.length} question(s) found.` : "No supported multiple-choice questions found. Open a question, or adjust the advanced selectors."
     };
     latest = { ...result, mapped, submit, next };

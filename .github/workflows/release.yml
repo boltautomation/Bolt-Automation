@@ -1,0 +1,109 @@
+name: Build and publish Bolt release
+on:
+  push:
+    branches: [main]
+    paths: [package.json, .github/workflows/release.yml]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: bolt-release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: windows-latest
+            platform: windows
+            arch: x64
+          - runner: macos-15
+            platform: macos
+            arch: arm64
+          - runner: macos-15-intel
+            platform: macos
+            arch: x64
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '24'
+          architecture: ${{ matrix.arch }}
+          cache: npm
+      - run: npm ci
+      - run: npm test
+      - run: node tests/desktop-smoke.cjs
+      - name: Prepare Windows portable runtime
+        if: matrix.platform == 'windows'
+        shell: pwsh
+        run: |
+          $nodeExecutable = (Get-Command node).Source
+          $license = Join-Path (Split-Path $nodeExecutable) 'LICENSE'
+          if (-not (Test-Path -LiteralPath $license)) { throw 'Matching Node license is missing.' }
+          New-Item -ItemType Directory -Path tools/runtime -Force | Out-Null
+          Copy-Item -LiteralPath $nodeExecutable -Destination tools/runtime/node.exe -Force
+          Copy-Item -LiteralPath $license -Destination tools/runtime/LICENSE.txt -Force
+      - if: matrix.platform == 'windows'
+        run: npm run package:windows
+      - if: matrix.platform == 'windows'
+        run: node tests/package-smoke.cjs
+      - if: matrix.platform == 'macos'
+        run: npm run package:macos
+      - if: matrix.platform == 'macos'
+        run: node tests/mac-package-smoke.cjs
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: Bolt-${{ matrix.platform }}-${{ matrix.arch }}
+          path: |
+            releases/*.zip
+            releases/*.zip.sha256
+          if-no-files-found: error
+          retention-days: 14
+          compression-level: 0
+
+  publish:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          pattern: Bolt-*
+          path: release-assets
+          merge-multiple: true
+      - name: Verify checksums and release contents
+        run: |
+          node - <<'NODE'
+          const fs=require('node:fs'),path=require('node:path'),crypto=require('node:crypto'),release=require('./package.json');
+          const expected=Object.values(release.artifacts).flatMap(name=>[name,name+'.sha256']);
+          const actual=fs.readdirSync('release-assets').sort();
+          if(JSON.stringify(actual)!==JSON.stringify(expected.sort()))throw Error('Unexpected or missing release files.');
+          for(const name of Object.values(release.artifacts)){const file=path.join('release-assets',name),hash=crypto.createHash('sha256').update(fs.readFileSync(file)).digest('hex'),record=fs.readFileSync(file+'.sha256','utf8').trim().split(/\s+/);if(record[0]!==hash||record[1]!==name)throw Error('Release checksum mismatch: '+name);}
+          NODE
+      - name: Publish tested release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          tag="$(node -p "require('./package.json').releaseTag")"
+          title="$(node -p "require('./package.json').versionName")"
+          if gh release view "$tag" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            target="$(gh release view "$tag" --repo "$GITHUB_REPOSITORY" --json targetCommitish --jq .targetCommitish)"
+            test "$target" = "$GITHUB_SHA" || { echo 'This release already belongs to a different commit.'; exit 1; }
+            gh release upload "$tag" release-assets/* --repo "$GITHUB_REPOSITORY" --clobber
+            gh release edit "$tag" --repo "$GITHUB_REPOSITORY" --title "$title" --notes-file docs/RELEASE-NOTES.md --latest
+          else
+            gh release create "$tag" release-assets/* --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --title "$title" --notes-file docs/RELEASE-NOTES.md --latest
+          fi

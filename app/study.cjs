@@ -18,8 +18,9 @@ function bm25(question,passages,limit=16){
   for(const d of docs)for(const word of new Set(d.words))df.set(word,(df.get(word)||0)+1);
   return docs.map(({p,words})=>{const counts=new Map();for(const w of words)counts.set(w,(counts.get(w)||0)+1);let score=0;for(const w of query){const tf=counts.get(w)||0,idf=Math.log(1+(docs.length-(df.get(w)||0)+.5)/((df.get(w)||0)+.5));score+=idf*tf*2.2/(tf+1.2*(.25+.75*words.length/(average||1)));}return {...p,lexicalScore:score};}).sort((a,b)=>b.lexicalScore-a.lexicalScore||a.id.localeCompare(b.id)).slice(0,limit);
 }
-function extractPdf(bytes,{signal}={}){
-  if(!Buffer.isBuffer(bytes)||bytes.length>8*1024*1024||!bytes.subarray(0,1024).includes(Buffer.from('%PDF-')))return Promise.reject(new Error('Choose a PDF file up to 8 MB.'));
+function extractPdf(bytes,{signal,maxBytes=8*1024*1024}={}){
+  const limit=Math.max(1,Math.min(32*1024*1024,maxBytes));
+  if(!Buffer.isBuffer(bytes)||bytes.length>limit||!bytes.subarray(0,1024).includes(Buffer.from('%PDF-')))return Promise.reject(new Error(`Choose a PDF file up to ${Math.round(limit/1024/1024)} MB.`));
   signal?.throwIfAborted();
   return new Promise((resolve,reject)=>{
     const worker=new Worker(path.join(__dirname,'pdf-worker.cjs'),{workerData:bytes,resourceLimits:{maxOldGenerationSizeMb:256}});let settled=false;
@@ -30,7 +31,7 @@ function extractPdf(bytes,{signal}={}){
   });
 }
 class StudyService{
-  constructor({file=path.resolve(__dirname,'../.app-runtime/study.json'),fetcher=fetch,extractor=extractPdf}={}){this.store=new JsonStore(file,{version:1,documents:[],answers:[]});Object.assign(this,{fetcher,extractor});}
+  constructor({file=require('./runtime-path.cjs').dataFile('study.json'),fetcher=fetch,extractor=extractPdf}={}){this.store=new JsonStore(file,{version:1,documents:[],answers:[]});Object.assign(this,{fetcher,extractor});}
   async state(){const data=await this.store.read();return {busy:Boolean(this.controller),documents:data.documents.map(({passages,...doc})=>({...doc,passageCount:passages.length})),answers:data.answers.map(({id,question,answer,verifiedAt,docIds})=>({id,question,answer:answer.slice(0,180),verifiedAt,docIds}))};}
   async job(work){if(this.controller)throw new Error('A study task is already running. Wait or cancel it.');this.controller=new AbortController();try{return await work(this.controller.signal);}finally{this.controller=null;}}
   cancel(){this.controller?.abort(new DOMException('Study task cancelled.','AbortError'));}

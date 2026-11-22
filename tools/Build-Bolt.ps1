@@ -27,7 +27,7 @@ try {
     Copy-Item -LiteralPath (Join-Path $projectRoot 'docs\GUIDE.md') -Destination (Join-Path $bundle 'docs')
     Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'Start-Bolt.ps1') -Destination (Join-Path $bundle 'tools')
     foreach ($file in Get-ChildItem -LiteralPath (Join-Path $projectRoot 'app') -File) {
-        if (($file.Extension -eq '.cjs' -and $file.Name -notlike 'upgrade-*') -or $file.Name -eq 'vault.ps1') { Copy-Item -LiteralPath $file.FullName -Destination (Join-Path $resources 'app') }
+        if (($file.Extension -eq '.cjs' -and $file.Name -notlike 'upgrade-*') -or $file.Name -in @('vault.ps1','ocr-windows.ps1')) { Copy-Item -LiteralPath $file.FullName -Destination (Join-Path $resources 'app') }
     }
     foreach ($file in Get-ChildItem -LiteralPath (Join-Path $projectRoot 'app\public') -File) { Copy-Item -LiteralPath $file.FullName -Destination (Join-Path $resources 'app\public') }
     Copy-Item -LiteralPath (Join-Path $projectRoot 'app\public\assets\bolt-transparent.png') -Destination (Join-Path $resources 'app\public\assets')
@@ -39,6 +39,8 @@ try {
     }
     Copy-Item -LiteralPath $runtimeNode -Destination (Join-Path $resources 'runtime\node.exe')
     Copy-Item -LiteralPath $runtimeLicense -Destination (Join-Path $resources 'runtime\LICENSE.txt')
+    & $runtimeNode (Join-Path $PSScriptRoot 'Build-Bolt-Desktop.cjs') --source $resources --out (Join-Path $bundle 'Desktop') --platform win32 --arch $architecture
+    if ($LASTEXITCODE -ne 0) { throw 'The native desktop app could not be packaged.' }
     $packageReadme = @'
 # Bolt - ready to run
 
@@ -54,7 +56,7 @@ Bolt defaults to two source-based answer checks and guesses off. Unsupported or 
 
 **Bolt is intended for educational purposes only. It is not approved or endorsed for cheating, causing harm, or other misuse.** Use it only for learning and activities you have permission to automate. Follow school policies, site terms, and applicable laws. Do not cheat, fabricate participation, manipulate rewards, harass, impersonate, commit fraud, or access accounts without permission. Review AI answers and sources. Bolt is independent of connected platforms; this statement does not grant permission or prevent consequences for misuse.
 
-**docs/GUIDE.md** contains the full guide and disclaimer. **resources/** contains the app and runtime. Private accounts, progress, and PDF data are created in **resources/.app-runtime/** on first use; no personal data is bundled. Keep your current folder and saved data when updating, and never share that private folder. Saved logins work only with the same Windows user.
+**docs/GUIDE.md** contains the full guide and disclaimer. **Desktop/** contains the standalone Bolt app; **resources/** contains supporting files and a browser-window fallback. Desktop accounts, progress, preferences, and PDF data are saved in **%APPDATA%/Bolt/data/**. Existing data from resources/.app-runtime is copied on first launch when available, without overwriting saved data. No personal data is bundled. Keep saved data private. Saved logins work only with the same Windows user.
 '@
     $packageReadme = $packageReadme.Replace('# Bolt - ready to run', ('# Bolt - ' + $packageMetadata.versionName))
     Set-Content -LiteralPath (Join-Path $bundle 'README.md') -Value $packageReadme -Encoding UTF8

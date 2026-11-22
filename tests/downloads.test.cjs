@@ -20,3 +20,7 @@ test('download totals retain legacy packages and include the Oak versioned filen
   ]}]}));
   assert.equal(stats.total,17);assert.deepEqual(stats.platforms,{windows:10,appleSilicon:3,intelMac:4});
 });
+
+test('Hemlock packages count towards downloads while checksums stay excluded',async()=>{
+  const stats=await getDownloadStats(async()=>({ok:true,headers:new Headers(),json:async()=>[{assets:[{name:'Bolt-v2-hemlock-Windows-x64.zip',download_count:2},{name:'Bolt-v2-hemlock-macOS-arm64.zip',download_count:3},{name:'Bolt-v2-hemlock-macOS-x64.zip',download_count:4},{name:'Bolt-v2-hemlock-Windows-x64.zip.sha256',download_count:99}]}]}));assert.equal(stats.total,9);assert.deepEqual(stats.platforms,{windows:2,appleSilicon:3,intelMac:4});
+});

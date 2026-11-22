@@ -6,6 +6,16 @@ if [ -f "$project_root/resources/app/server.cjs" ]; then resource_root="$project
 fail() { printf '\nBolt: %s\n' "$1" >&2; if [ -t 0 ]; then read -r -p 'Press Return to close.' || true; fi; exit 1; }
 [ "$(uname -s)" = Darwin ] || fail 'This launcher is for macOS. On Windows, use Start Bolt.cmd.'
 [ -f "$resource_root/app/server.cjs" ] || fail 'Extract the entire Bolt folder first.'
+if [ "${1:-}" != --check ]; then
+  desktop_arch="$(uname -m)"; if [ "$desktop_arch" = x86_64 ]; then desktop_arch=x64; fi
+  for desktop_app in "$project_root/Desktop/Bolt-darwin-$desktop_arch/Bolt.app" "$project_root/releases/desktop/Bolt-darwin-$desktop_arch/Bolt.app"; do
+    if [ -d "$desktop_app" ]; then
+      export BOLT_LEGACY_DATA_DIR="$resource_root/.app-runtime"
+      if [ "$resource_root" = "$project_root" ]; then export BOLT_DATA_DIR="$project_root/.app-runtime" BOLT_DESKTOP_PROFILE="$project_root/.app-runtime/desktop"; fi
+      nohup "$desktop_app/Contents/MacOS/Bolt" >/dev/null 2>&1 </dev/null & exit 0
+    fi
+  done
+fi
 node_path=''
 for candidate in "$resource_root/runtime/node" "$project_root/tools/runtime/node" /opt/homebrew/bin/node /usr/local/bin/node; do
   if [ -x "$candidate" ]; then node_path="$candidate"; break; fi

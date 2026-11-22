@@ -10,7 +10,7 @@ The promotional website lives in [`website/`](website/README.md). Preview it wit
 
 ## Open Bolt
 
-1. Download the [latest release](https://github.com/boltautomation/Bolt-Automation/releases/latest): **Bolt-v1.1-oak-Windows-x64.zip** for Windows x64, **Bolt-v1.1-oak-macOS-arm64.zip** for Apple Silicon, or **Bolt-v1.1-oak-macOS-x64.zip** for Intel Macs. Extract the entire folder.
+1. Download the [latest release](https://github.com/boltautomation/Bolt-Automation/releases/latest): **Bolt-v2-hemlock-Windows-x64.zip** for Windows x64, **Bolt-v2-hemlock-macOS-arm64.zip** for Apple Silicon, or **Bolt-v2-hemlock-macOS-x64.zip** for Intel Macs. Extract the entire folder.
 2. Open **Start Bolt.cmd** on Windows or **Start Bolt.command** on macOS inside the extracted **Bolt** folder. Mac builds require macOS 14 or newer. On a Mac, allow the launcher through System Settings > Privacy & Security if macOS requests approval; it is not notarized.
 3. Install Chrome or Brave if needed. Follow **Finish setup** in the app to install [Ollama](https://ollama.com/download) once, then use **Download model** in the app. The default model download is about 2.5 GB.
 
@@ -41,13 +41,17 @@ Bolt is independent software and is not affiliated with or endorsed by connected
 | `tests/` | Development checks. |
 | `archives/` | Older logo backups. |
 
-The clean package groups the application, engine, dependencies, and runtime under **resources/**. Its saved accounts, progress, and PDF library are created in **resources/.app-runtime/**. The development copy keeps its existing **.app-runtime/** folder. Neither private data folder is included in the ZIP.
+New builds open Bolt as a standalone desktop app with its own draggable title bar, window controls, translucent sidebar, and animated tab selection. Chrome or Brave still opens separately for website automation.
+
+The desktop executable lives under **Desktop/**; supporting application files remain under **resources/**. Packaged desktop data is stored in **%APPDATA%/Bolt/data/** on Windows or **~/Library/Application Support/Bolt/data/** on macOS. The launcher migrates existing local data from the old package when available, without overwriting saved data. The development copy keeps its existing **.app-runtime/** folder. Private data is excluded from packages.
 
 For updates, extract into a new folder and keep your existing copy until you have finished any active work. Saved logins are protected for your Windows user and are not portable to another Windows account. See the full guide before moving private data.
 
 ## Development
 
 Run `npm test` for unit tests. Build a fresh Windows x64 package with `powershell -NoProfile -ExecutionPolicy Bypass -File tools/Build-Bolt.ps1`. The builder uses the bundled runtime and installed dependencies; see [the full guide](docs/GUIDE.md) for source-checkout setup and browser tests.
+
+Use `npm ci`, then `npm start` for the desktop app. `npm run package:desktop` creates a standalone executable under **releases/desktop/**. `node tests/desktop-smoke.cjs` checks the actual desktop window with an empty test profile; no saved accounts are used. These desktop changes have been tested on Windows; native macOS validation is required before publishing new Mac packages.
 
 ## macOS development and packaging
 

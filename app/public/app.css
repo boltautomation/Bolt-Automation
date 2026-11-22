@@ -163,3 +163,29 @@ body:has(#quick-tour[open]) .sidebar::before,body:has(#quick-tour[open]) .worksp
 /* Slider trade-offs stay readable at narrow window widths. */
 .range-tradeoffs{display:flex;justify-content:space-between;gap:20px;margin:7px 0 12px;color:var(--muted,#a0a0a0);font-size:11px;line-height:1.5}
 .range-tradeoffs>span{max-width:48%}.range-tradeoffs>span:last-child{text-align:right}
+
+/* Translucent branded rail with one continuous selection surface. */
+.sidebar{background:linear-gradient(155deg,#2929299c,#151515b8);backdrop-filter:blur(28px) saturate(135%);-webkit-backdrop-filter:blur(28px) saturate(135%);border-right:1px solid #ffffff13;box-shadow:inset -1px 0 0 #ffffff06}
+.sidebar::before{background:linear-gradient(100deg,#dde33a47,#a9cc4047)}
+.sidebar nav{position:relative;isolation:isolate}
+.sidebar .nav-item{z-index:1;background:transparent!important;box-shadow:none!important}
+.sidebar .nav-item[aria-current=page]{background:transparent!important;box-shadow:none!important}
+.sidebar .nav-item[aria-current=page]::before{display:none}
+.sidebar .nav-item:hover{background:#ffffff07!important}
+.nav-selection{position:absolute;inset:0 0 auto;height:46px;z-index:0;border:1px solid #ffffff25;border-radius:8px;background:#ffffff0d;box-shadow:inset 0 1px 0 #ffffff09,0 3px 14px #0000000c;pointer-events:none;will-change:transform}
+.nav-selection[data-ready=true]{transition:transform 330ms cubic-bezier(.22,.8,.22,1),height 220ms ease}
+.nav-selection::before{content:"";position:absolute;left:-1px;top:15px;bottom:15px;width:2px;border-radius:2px;background:#d8dcc8a6}
+.window-chrome[hidden]{display:none}
+:root{--window-bar-height:32px}
+.window-chrome{height:var(--window-bar-height);display:flex;align-items:center;justify-content:space-between;padding-left:14px;background:#171717;border:1px solid #353535;border-bottom-color:#252525;border-radius:7px 7px 0 0;-webkit-app-region:drag;user-select:none;flex:none}
+.window-chrome #window-title{position:absolute;left:50%;transform:translateX(-50%);pointer-events:none;color:#a5a5a5;font:12px/1 "Segoe UI",system-ui,sans-serif;white-space:nowrap;letter-spacing:0}
+.window-controls{align-self:stretch;display:flex;margin-left:auto;-webkit-app-region:no-drag}.window-controls button{display:grid;place-items:center;width:46px;height:100%;padding:0;border:0;border-radius:0;background:transparent;color:#b4b4b4;font-size:13px;transition:background-color 140ms,color 140ms;filter:none}.window-controls button:hover{background:#ffffff12;color:#fff}.window-controls #window-close:hover{background:#b8343d;color:#fff}
+.window-controls svg{width:10px;height:10px;fill:none;stroke:currentColor;stroke-width:1;pointer-events:none}.window-controls .restore-icon{display:none}html.desktop[data-maximized=true] .window-controls .maximize-icon{display:none}html.desktop[data-maximized=true] .window-controls .restore-icon{display:block}
+html.desktop{background:transparent}html.desktop body{background:transparent}html.desktop .app-shell{height:calc(100dvh - var(--window-bar-height));background:transparent}html.desktop .workspace{background:#141414}html.desktop .sidebar{top:0}html.desktop .workspace::after{top:var(--window-bar-height)}html.desktop .window-controls button:focus-visible{outline-offset:-4px}
+html.desktop[data-maximized=true] .window-chrome{border-radius:0}
+html.desktop body{padding-top:var(--window-bar-height)}html.desktop .window-chrome{position:fixed;inset:0 0 auto;z-index:100}html.desktop .tour-dimmer{clip-path:inset(var(--window-bar-height) 0 0)}
+.tour-body{overflow-x:hidden}.tour-tip{white-space:normal;overflow-wrap:anywhere}
+.sidebar{z-index:30}
+@media(prefers-reduced-motion:reduce){.nav-selection[data-ready=true]{transition:none;will-change:auto}}
+@media(prefers-reduced-transparency:reduce),(prefers-contrast:more){.sidebar{background:#202020;backdrop-filter:none;-webkit-backdrop-filter:none}.nav-selection{background:#363636;border-color:#ffffff55}}
+@media(forced-colors:active){.nav-selection{background:Highlight;border-color:Highlight}.nav-selection:before{display:none}.sidebar .nav-item[aria-current=page]{color:HighlightText}.window-chrome{background:Canvas;color:CanvasText}}

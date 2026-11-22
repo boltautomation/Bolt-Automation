@@ -2,7 +2,7 @@
 (() => {
   const defaults = Object.freeze({
     model: "gpt-5.4-mini", autoSubmit: true, autoSurvey: true, surveyMode: 'preset', guessWhenStuck: false, randomOpinions: false, finishActivity: false, confidence: 0.85, maxQuestions: 20, answerDelayMs: 0, interestDelayMs: 0,
-    doubleCheck: false, humanizedMouse: false, questionSelector: "", optionSelector: "", submitSelector: "", nextSelector: ""
+    doubleCheck: false, humanizedMouse: false, webResearch:true, visionResearch:false, questionSelector: "", optionSelector: "", submitSelector: "", nextSelector: ""
   });
   const normalize = value => String(value ?? "").replace(/\s+/g, " ").trim();
   const fingerprint = value => JSON.stringify(value);
@@ -35,6 +35,8 @@
     if(!['preset','random'].includes(value.surveyMode))throw new Error('Choose No / lowest interest or Random responses for surveys.');
     value.guessWhenStuck = Boolean(value.guessWhenStuck);
     value.doubleCheck = Boolean(value.doubleCheck);
+    value.webResearch = Boolean(value.webResearch);
+    value.visionResearch = Boolean(value.visionResearch);
     value.humanizedMouse = Boolean(value.humanizedMouse);
     value.randomOpinions = Boolean(value.randomOpinions);
     value.finishActivity = Boolean(value.finishActivity);
@@ -78,12 +80,14 @@
     if(decision?.personal)validateDecision(decision,question,0);
     const booleanOptions=trueFalseOptions(question),options=booleanOptions||question.options||[];
     const singleChoice=!question.multiple||!!booleanOptions;
-    const minimum=singleChoice?Math.max(.35,1/Math.max(1,options.length)+.05):.35;
-    if(!decision||decision.canAnswer!==true||!['source-context','general-knowledge'].includes(decision.basis)||normalize(decision.explanation).length<12||decision.confidence<minimum||decision.basis==='source-context'&&!decision.sources?.length){
-      const error=new Error('No educated guess could be established from the available context or model knowledge. Review this question.');error.code='NO_EDUCATED_GUESS';throw error;
+    // A plausible four-choice preference can be below 50%; it must still beat chance.
+    const minimum=singleChoice?1/Math.max(1,options.length)+.01:.35;
+    if(!decision||decision.canAnswer!==true||!['source-context','general-knowledge','visual-observation'].includes(decision.basis)||normalize(decision.explanation).length<12||decision.confidence<minimum||decision.basis==='source-context'&&!decision.sources?.length||decision.basis==='visual-observation'&&!decision.visualSources?.length){
+      const error=new Error('No educated guess could be established from the available context or model knowledge. Review this question.');error.code='NO_EDUCATED_GUESS';
+      error.details={reason:decision?.canAnswer!==true?'model-declined':decision.confidence<minimum?'guess-confidence':decision.basis==='source-context'&&!decision.sources?.length?'missing-guess-source':'invalid-guess',confidence:Number.isFinite(decision?.confidence)?decision.confidence:null,minimumConfidence:minimum,explanation:normalize(decision?.explanation)};throw error;
     }
     validateDecision(decision,question,0);
-    return markGuess({...decision,sources:decision.basis==='source-context'?decision.sources:[]},question,reason,'educated');
+    return markGuess({...decision,sources:decision.basis==='source-context'?decision.sources:decision.basis==='visual-observation'?decision.visualSources:[]},question,reason,'educated');
   }
   function randomGuess(question,reason,random=Math.random) {
     const options=trueFalseOptions(question)||question.options||[];
@@ -102,6 +106,23 @@
     // Account/contact consent is separate from an opinion in an activity.
     if(/\b(?:consent|opt[ -]?in|subscribe|newsletter|marketing|privacy policy|terms of (?:use|service)|receive (?:emails?|texts?|sms|messages)|contact (?:you|me)|share (?:my|your) (?:data|information))\b/i.test(prompt)&&!/\bin your (?:own )?opinion\b|\bwhat (?:do|would) you think\b|\bhow (?:do|would) you feel\b/i.test(prompt))return false;
     return identified||/\bwhat(?:'s| is) your (?:favo[u]?rite|opinion|preference)\b|\b(?:which|what)\b.{0,100}\bwould you\b.{0,60}\b(?:like|prefer|enjoy|choose|interested)\b|\bin your (?:own )?opinion\b|\bwhat (?:do|would) you think\b|\bhow (?:do|would) you feel\b|\bdo you (?:agree|disagree|prefer|believe|feel|enjoy|like)\b|\bwould you (?:prefer|enjoy|like to (?:study|learn|work|pursue|become))\b|^(?:which|what)\b.{0,100}\b(?:interests you|appeals to you|do you prefer|would you (?:choose|prefer)|you (?:prefer|find interesting|enjoy))\b|\b(?:rate|describe) your (?:interest|opinion|feelings|experience)\b|\bhow (?:interested|interesting)\b.{0,100}\b(?:you|to you)\b/i.test(prompt);
+  }
+  function isCompletionTask(question){
+    const prompt=normalize(question.prompt||question.text);
+    return /\b(?:did|have) you (?:complete(?:d)?|finish(?:ed)?|fill(?:ed)? out|submit(?:ted)?)\b/i.test(prompt)&&/\b(?:worksheet|reflection|assignment|exercise|activity|form)\b/i.test(prompt)&&/\b(?:complete|fill|return|submit|keep.*open)\b/i.test(prompt);
+  }
+  function completionAnswer(question){
+    if(!isCompletionTask(question)||!/\b(?:worksheet|reflection)\b/i.test(question.prompt||question.text))return null;
+    const label=option=>normalize(option.text).replace(/^(?:\([a-z]\)|[a-z][).:])\s*/i,'').replace(/[.!]$/,'').toLowerCase();
+    const yes=question.options.filter(option=>label(option)==='yes'),no=question.options.filter(option=>label(option)==='no');
+    if(yes.length!==1||no.length!==1)return null;
+    return {optionIds:[yes[0].id],confidence:1,personal:false,completionAcknowledgement:true,verified:false,sources:[],explanation:'Selected Yes for a worksheet/reflection completion prompt, as configured. Bolt has not verified completion of the external activity.'};
+  }
+  function validSiteScore(score){return score?.source==='site'&&Number.isInteger(score.correct)&&Number.isInteger(score.total)&&score.total>0&&score.correct>=0&&score.correct<=score.total&&score.total<=100000;}
+  function siteScore(value){
+    const text=normalize(value),match=text.match(/\bcorrect answers?\s*:?\s*(\d+)\s*(?:\/|out of|of)\s*(\d+)\b/i)||text.match(/\b(\d+)\s*(?:\/|out of|of)\s*(\d+)\s*(?:questions?\s+|answers?\s+)?correct\b/i);
+    const score=match?{correct:Number(match[1]),total:Number(match[2]),source:'site'}:null;
+    return validSiteScore(score)?score:null;
   }
   function randomOpinionAnswer(question,random=Math.random) {
     const answer=randomGuess(question,'User-authorized random opinion response.',random);
@@ -166,5 +187,5 @@
     }
     return [...found.values()];
   }
-  globalThis.ChatterCore = { defaults, normalize, fingerprint, safeUrl, isChatterHigh, settings, trueFalseOptions, validateDecision, markGuess, educatedGuess, randomGuess, isOpinionQuestion, randomOpinionAnswer, isInterestQuestion, surveyAnswer, normalizeCombinedAnswer, outputText, citations };
+  globalThis.ChatterCore = { defaults, normalize, fingerprint, safeUrl, isChatterHigh, settings, trueFalseOptions, validateDecision, markGuess, educatedGuess, randomGuess, isCompletionTask, completionAnswer, siteScore, validSiteScore, isOpinionQuestion, randomOpinionAnswer, isInterestQuestion, surveyAnswer, normalizeCombinedAnswer, outputText, citations };
 })();

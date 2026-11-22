@@ -19,7 +19,7 @@ function crypt(operation,value) {
   });
 }
 class AccountStore {
-  constructor({file=path.resolve(__dirname,'../.app-runtime/accounts.json'),protect=value=>crypt('protect',value),unprotect=value=>crypt('unprotect',value)}={}) {
+  constructor({file=require('./runtime-path.cjs').dataFile('accounts.json'),protect=value=>crypt('protect',value),unprotect=value=>crypt('unprotect',value)}={}) {
     this.store=new JsonStore(file,{version:1,accounts:[]});Object.assign(this,{protect,unprotect});
   }
   public(record){return {id:record.id,email:record.email,label:record.label,hasPassword:record.hasPassword,hasSession:record.hasSession};}

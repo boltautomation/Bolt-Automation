@@ -1,0 +1,16 @@
+const {test}=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs/promises'),os=require('node:os'),path=require('node:path');
+const {Preferences}=require('../app/preferences.cjs'),{describeVisualSource}=require('../app/vision-sources.cjs');
+test('desktop preferences persist validated settings without credentials or arbitrary fields',async()=>{
+ const dir=await fs.mkdtemp(path.join(os.tmpdir(),'bolt-preferences-test-')),file=path.join(dir,'preferences.json');
+ try{const store=new Preferences({file});await store.save({answerDelayMs:3000,visionResearch:true,password:'PRIVATE',email:'PRIVATE',token:'PRIVATE'});await store.save({interestDelayMs:5000});const saved=await new Preferences({file}).read();assert.equal(saved.settings.answerDelayMs,3000);assert.equal(saved.settings.interestDelayMs,5000);assert.equal(saved.settings.visionResearch,true);assert.ok(!JSON.stringify(saved).includes('PRIVATE'));}finally{await fs.rm(dir,{recursive:true,force:true});}
+});
+test('visual fallback uses the smallest installed vision model and returns unverified observations only',async()=>{
+ const requests=[],cache=new Map(),page={url:'https://example.org/comic',title:'Comic',media:{images:[{url:'https://example.org/page12.png',page:12},{url:'https://example.org/page13.png',page:13}]}},question={prompt:'What happens on page 13?'};
+ const fetcher=async(url,options={})=>{const body=options.body?JSON.parse(options.body):{};requests.push({url,body});if(url.endsWith('/tags'))return Response.json({models:[{name:'large:27b',size:27},{name:'text:4b',size:4},{name:'small:7b',size:7}]});if(url.endsWith('/show'))return Response.json({capabilities:body.model==='text:4b'?['completion']:['completion','vision']});return Response.json({done:true,message:{content:JSON.stringify({readable:true,description:'A fish is next to a plastic bottle floating in the water.'})}});};
+ const options={fetcher,cache,downloader:async url=>{assert.ok(url.endsWith('page13.png'));return{content:Buffer.from('fixture')};}};
+ const result=await describeVisualSource(page,question,new AbortController().signal,options);assert.equal(result.model,'small:7b');assert.equal(result.unverified,true);assert.ok(!result.quote);assert.ok(!result.verified);const chat=requests.find(r=>r.url.endsWith('/chat')).body;assert.equal(chat.keep_alive,0);assert.equal(chat.messages[1].images[0],Buffer.from('fixture').toString('base64'));await describeVisualSource(page,question,new AbortController().signal,options);assert.equal(requests.filter(r=>r.url.endsWith('/chat')).length,1);
+ await describeVisualSource(page,{prompt:'Which symbol appears on page 13?'},new AbortController().signal,options);assert.equal(requests.filter(r=>r.url.endsWith('/chat')).length,2,'Different questions cannot reuse a description that omitted relevant details');
+});
+test('visual fallback never downloads a model when no installed model supports images',async()=>{
+ const fetcher=async url=>Response.json(url.endsWith('/tags')?{models:[{name:'text:4b'}]}:{capabilities:['completion']});assert.equal(await describeVisualSource({url:'https://example.org',media:{images:[{url:'https://example.org/p.png'}]}},{prompt:'Read this image'},new AbortController().signal,{fetcher,downloader:()=>assert.fail('No vision model')}),null);
+});

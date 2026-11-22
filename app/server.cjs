@@ -23,18 +23,18 @@ async function body(request) {
 }
 function openWindow(url) {
   // This is the visible, interactive app window requested by the user.
-  const profile=path.resolve(__dirname,'../.app-runtime/ui');
+  const profile=require('./runtime-path.cjs').dataFile('ui');
   const bounds=screenBounds();
   const child = spawn(findBrowser(), [`--app=${url}`, `--user-data-dir=${profile}`, `--window-size=${bounds.width},${bounds.height}`, `--window-position=${bounds.left},${bounds.top}`, '--no-first-run', '--no-default-browser-check'], { detached: true, stdio: 'ignore', windowsHide: false });
   child.on('error', () => {}); child.unref();
 }
-async function createApp({ manager = new Manager(), study=new StudyService(), privacy=new ResearchPrivacy(), port = 43117, open = false } = {}) {
+async function createApp({ manager = new Manager(), study=new StudyService(), privacy=new ResearchPrivacy(), preferences=null,port = 43117, open = false } = {}) {
   const token = crypto.randomBytes(32).toString('hex');
   let origin;
   const json = (response, status, value) => { response.writeHead(status, { 'Content-Type': 'application/json; charset=utf-8' }); response.end(JSON.stringify(value)); };
   const staticFiles = {
     '/': ['index.html', 'text/html; charset=utf-8'], '/app.css': ['app.css', 'text/css; charset=utf-8'],
-    '/client.js': ['client.js', 'text/javascript; charset=utf-8'], '/study.js': ['study.js', 'text/javascript; charset=utf-8'], '/core.js': ['../../extension/core.js', 'text/javascript; charset=utf-8'],
+    '/client.js': ['client.js', 'text/javascript; charset=utf-8'], '/desktop.js':['desktop.js','text/javascript; charset=utf-8'], '/study.js': ['study.js', 'text/javascript; charset=utf-8'], '/core.js': ['../../extension/core.js', 'text/javascript; charset=utf-8'],
     '/assets/bolt.png': ['assets/bolt-transparent.png', 'image/png']
   };
   const server = http.createServer(async (request, response) => {
@@ -58,7 +58,8 @@ async function createApp({ manager = new Manager(), study=new StudyService(), pr
       if (typeof provided !== 'string' || Buffer.byteLength(provided) !== Buffer.byteLength(token) || !crypto.timingSafeEqual(Buffer.from(provided), Buffer.from(token))) throw error('Invalid app session. Reload the app.', 403);
       if (request.method === 'GET' && route === '/api/state') {
         let accounts=[],accountsError='';try{accounts=await manager.accountStore.list();}catch{accountsError='Saved accounts could not be loaded. Re-add the affected account.';}
-        return json(response,200,{...manager.snapshot(),accounts,accountsError});
+        let savedPreferences=null;try{savedPreferences=preferences?await preferences.read():null;}catch{}
+        return json(response,200,{...manager.snapshot(),accounts,accountsError,preferences:savedPreferences});
       }
       if(request.method==='GET'&&route==='/api/study/state')return json(response,200,await study.state());
       if(request.method==='GET'&&route==='/api/study/research/state')return json(response,200,privacy.snapshot());
@@ -70,6 +71,7 @@ async function createApp({ manager = new Manager(), study=new StudyService(), pr
       if (request.method !== 'POST') throw error('Not found.', 404);
       const data = await body(request);
       if (!data || typeof data !== 'object' || Array.isArray(data)) throw error('Expected an object.', 400);
+      if(route==='/api/preferences'){if(preferences)await preferences.save(data.settings||{});return json(response,200,{ok:true});}
       if(route==='/api/study/search')return json(response,200,await study.search(data));
       if(route==='/api/study/ask')return json(response,200,await study.ask(data));
       if(route==='/api/study/verify')return json(response,200,await study.verify(data));
@@ -85,7 +87,7 @@ async function createApp({ manager = new Manager(), study=new StudyService(), pr
       if (route === '/api/accounts/remove') { await manager.removeAccount(data.id); return json(response,200,{ok:true}); }
       if (route === '/api/modules/selection') { if(!Array.isArray(data.ids))throw error('Expected module IDs.',400);await manager.saveSelection(data.ids);return json(response,200,{ok:true}); }
       if (route === '/api/connect') manager.connect(data);
-      else if (route === '/api/run') manager.run(data);
+      else if (route === '/api/run') {if(preferences){const saved=await preferences.read();data.settings={...saved.settings,...data.settings};}manager.run(data);if(preferences)await preferences.save(data.settings||{});}
       else if (route === '/api/modules') manager.refreshModules();
       else if (route === '/api/verify-login') manager.confirmLogin(data);
       else if (route === '/api/stop') manager.stop();
@@ -111,7 +113,7 @@ async function createApp({ manager = new Manager(), study=new StudyService(), pr
 }
 if (require.main === module) {
   const port = Number(process.env.BOLT_PORT || process.env.CHATTERHIGH_PORT || 43117);
-  createApp({ port, open: process.argv.includes('--open') }).then(app => {
+  createApp({ port, open: process.argv.includes('--open'),preferences:new(require('./preferences.cjs').Preferences)() }).then(app => {
     console.log(`Bolt: ${app.origin}`);
     const close = () => app.close().then(() => process.exit(0));
     process.once('SIGINT', close); process.once('SIGTERM', close);

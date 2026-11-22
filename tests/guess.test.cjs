@@ -91,6 +91,13 @@ test('declined, baseless, chance-level and context-free guesses remain for revie
   }
 });
 
+test('an informed best option among four choices can be selected below 50% without random fallback',()=>{
+  const four={...question,options:[...question.options,{id:'o2',text:'Montreal'},{id:'o3',text:'Vancouver'}]};
+  const result=C.educatedGuess({...good,confidence:.3},four,'Source unavailable');
+  assert.deepEqual(result.optionIds,['o1']);assert.equal(result.confidence,.3);assert.equal(result.verified,false);
+  assert.throws(()=>C.educatedGuess({...good,confidence:.25},four,'Source unavailable'),{code:'NO_EDUCATED_GUESS'});
+});
+
 test('a percentage-form guess confidence is normalized to a probability without increasing it',async()=>{
   const solver=new OllamaSolver({fetcher:async()=>({ok:true,json:async()=>({done:true,message:{content:JSON.stringify({...good,confidence:65})}})})});
   const value=await solver.guess(question,new AbortController().signal);assert.equal(value.confidence,.65);

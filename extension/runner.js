@@ -72,9 +72,13 @@
       for (let step = 0; step < (config.finishActivity ? 10000 : 250); step++) {
         signal.throwIfAborted();
         page = await settle(page);
-        if (page.complete) return { reason: "complete", count, message: "Quiz completed." };
-        const presets = page.questions.map(question => (config.autoSurvey ? C.surveyAnswer(question,config.surveyMode) : null)||(config.randomOpinions&&C.isOpinionQuestion(question)?C.randomOpinionAnswer(question):null));
-        const factualCount = presets.filter(answer => !answer).length;
+        if (page.complete) return { reason: "complete", count, message: "Quiz completed.",score:C.validSiteScore(page.score)?page.score:null };
+        if(page.questions.some(question=>C.isCompletionTask(question)&&!C.completionAnswer(question))){
+          const error=new Error('Needs your input: complete the linked worksheet or reflection, then answer its completion question yourself.');
+          error.code='USER_TASK_REQUIRED';error.details={reason:'external-task-completion'};throw error;
+        }
+        const presets = page.questions.map(question => C.completionAnswer(question)||(config.autoSurvey ? C.surveyAnswer(question,config.surveyMode) : null)||(config.randomOpinions&&C.isOpinionQuestion(question)?C.randomOpinionAnswer(question):null));
+        const factualCount = presets.filter(answer => !answer||answer.completionAcknowledgement).length;
         const hasInterest=page.questions.some(question=>C.isInterestQuestion(question));
         const interestPage=hasInterest&&page.questions.every(question=>C.isInterestQuestion(question)||C.surveyAnswer(question));
         let advancedWithNext = false;
@@ -104,7 +108,7 @@
             const prepareForAnswer=async workingSignal=>{if(this.prepareResearch&&question.links?.length)await this.prepareResearch(question,workingSignal,startPacing);};
             if(preset?.randomOpinion)this.onEvent({type:'random-opinion',question,count});
             else if (!preset) this.onEvent({ type: "research", question, count });
-            if(preset?.randomOpinion)await prepareForAnswer(signal);
+            if(preset?.randomOpinion||preset?.completionAcknowledgement)await prepareForAnswer(signal);
             let answer, repair = null;
             const research=async workingSignal=>{
             for(let attempt=0; attempt<3; attempt++) {
@@ -135,7 +139,7 @@
             }
             };
             try{
-              const budget=this.questionTimeoutMs*(config.doubleCheck?2:1);
+              const budget=this.questionTimeoutMs*(config.doubleCheck?2:1)+(config.visionResearch&&/\b(?:images?|comic|diagram|picture|map|chart|figure)\b/i.test(question.prompt||question.text)?120000:0);
               answer=!preset?await bounded(research,budget,signal,`Research or answer generation exceeded the ${budget/1000}-second limit.`):await research(signal);
             }catch(error){
               signal.throwIfAborted();
@@ -151,7 +155,7 @@
                   best=C.educatedGuess(C.normalizeCombinedAnswer(candidate,question),question,error.message);
                 }catch(guessError){signal.throwIfAborted();if(config.randomOpinions&&personalQuestionError(guessError)&&C.isOpinionQuestion(question,true)){this.onEvent({type:'random-opinion',question,count});best=C.randomOpinionAnswer(question);}else if(!guessAllowed(guessError))throw guessError;else guessFailure=guessError;}
               }
-              if(!best){const review=new Error('No educated guess was available. Review this question.');review.code='NO_EDUCATED_GUESS';review.details={reason:'educated-guess-unavailable',researchError:error.message,guessError:guessFailure?.message||'No local guess model available.'};throw review;}
+              if(!best){const review=new Error('No educated guess was available. Review this question.');review.code='NO_EDUCATED_GUESS';review.details={reason:'educated-guess-unavailable',researchError:error.message,guessError:guessFailure?.message||'No local guess model available.',...(guessFailure?.details?{guessDetails:guessFailure.details}:{})};throw review;}
               answer=best;
               signal.throwIfAborted();guessed=true;
             }

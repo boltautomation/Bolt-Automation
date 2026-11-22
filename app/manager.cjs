@@ -31,7 +31,7 @@ class Manager {
     }
     if(detail.type==='research'){this.state.phase='running';this.state.message=`Researching question ${detail.count+1}…`;}
     if(detail.type==='pacing'){this.state.phase='running';this.state.message=`${detail.interest?'Interest question cooldown':'Thinking cooldown'}: ${detail.delayMs/1000}s before continuing…`;}
-    if(detail.type==='evidence'){this.state.phase='running';this.state.message=detail.checking?'Cross-checking the answer against the sources…':'Research read. Generating the answer…';}
+    if(detail.type==='evidence'){this.state.phase='running';this.state.message=detail.searching?'The linked research was insufficient. Quickly checking other public sources…':detail.checking?'Cross-checking the answer against the sources…':'Research read. Generating the answer…';}
     if(detail.type==='guessing'){this.state.phase='running';this.state.message='Research could not verify the answer. Assessing an unverified educated guess…';}
     if(detail.type==='random-opinion'){this.state.phase='running';this.state.message='Choosing a random opinion response…';}
     if(detail.type==='recovering'){this.state.phase='recovering';this.state.message=detail.message;}
@@ -117,7 +117,8 @@ class Manager {
       const progress=await this.progressStore.sync(this.state.account,this.state.modules);
       this.state.history=Object.values(progress.items);this.state.selectedModuleIds=progress.selected.filter(id=>this.state.modules.some(module=>module.id===id&&!module.completed));
       this.state.modules=this.state.modules.map(module=>({...module,lastStatus:progress.items[module.id]?.status}));
-      if(!this.state.queue.length&&progress.queue.length){this.state.queue=progress.queue.map(item=>{const module=this.state.modules.find(module=>module.id===item.id);return {...item,answered:module?.answered??item.answered,total:module?.total??item.total,status:module?.completed?'completed':item.status==='running'?'paused':item.status};});this.pausedTasks=this.state.queue.filter(item=>item.status!=='completed').map(item=>({...item,...this.state.modules.find(module=>module.id===item.id),mode:item.id.startsWith('daily:')?'daily':'modules',completed:false}));}
+      this.state.modules=this.state.modules.map(module=>({...module,...(C.validSiteScore(progress.items[module.id]?.score)?{score:progress.items[module.id].score}:{})}));
+      if(!this.state.queue.length&&progress.queue.length){this.state.queue=progress.queue.map(item=>{const module=this.state.modules.find(module=>module.id===item.id);return {...item,answered:module?.answered??item.answered,total:module?.total??item.total,score:module?.score??item.score,status:module?.completed?'completed':item.status==='running'?'paused':item.status};});this.pausedTasks=this.state.queue.filter(item=>item.status!=='completed').map(item=>({...item,...this.state.modules.find(module=>module.id===item.id),mode:item.id.startsWith('daily:')?'daily':'modules',completed:false}));}
       this.state.modulesStatus='loaded';if(this.browser.catalogPartial)this.state.modulesError='Some courses did not load. Reload to retry.';
     }catch(error){this.state.modulesStatus='error';this.state.modulesError=error.message;signal.throwIfAborted();}
   }
@@ -127,11 +128,12 @@ class Manager {
   async removeAccount(id){if(this.job)throw new Error('Stop the running activity first.');await this.accountStore.remove(id);if(this.state.accountId===id)this.state.accountId='';}
   async saveSelection(ids){if(!this.state.account)throw new Error('Sign in first.');const valid=[...new Set(ids)].filter(id=>this.state.modules.some(module=>module.id===id));this.state.selectedModuleIds=valid;await this.progressStore.selection(this.state.account,valid);}
   dailyId(){return `daily:${new Intl.DateTimeFormat('en-CA',{timeZone:'America/Los_Angeles'}).format(new Date())}`;}
-  async outcome(task,status,error){
+  async outcome(task,status,error,score,failure){
     if(this.checkpointJob)await this.checkpointJob;
-    const item=this.state.queue[this.state.queueIndex];if(item){item.status=status;if(error)item.error=error;else delete item.error;}
-    if(task.mode==='modules')this.state.modules=this.state.modules.map(module=>module.id===task.id?{...module,completed:status==='completed',answered:item?.answered??module.answered,lastStatus:status}:module);
-    const record=await this.progressStore.update(this.state.account,task.id,{title:task.title,course:task.course||'',status,answered:status==='completed'&&task.total?task.total:item?.answered||this.state.taskCount,total:task.total||null,error:status==='completed'?null:error||null,...(status==='completed'?{completedAt:new Date().toISOString()}:{})});
+    const item=this.state.queue[this.state.queueIndex];if(item){item.status=status;if(error)item.error=error;else delete item.error;if(failure)item.failure=failure;else if(status==='completed')delete item.failure;}
+    if(status==='completed'&&C.validSiteScore(score)&&item){item.score=score;item.total=score.total;item.answered=score.total;}
+    if(task.mode==='modules')this.state.modules=this.state.modules.map(module=>module.id===task.id?{...module,completed:status==='completed',answered:item?.answered??module.answered,total:item?.total??module.total,score:item?.score??module.score,lastStatus:status}:module);
+    const record=await this.progressStore.update(this.state.account,task.id,{title:task.title,course:task.course||'',status,answered:status==='completed'&&item?.total?item.total:item?.answered||this.state.taskCount,total:item?.total||task.total||null,...(C.validSiteScore(item?.score)?{score:item.score}:{}),error:status==='completed'?null:error||null,...(failure?{failure}:status==='completed'?{failure:null}:{}),...(status==='completed'?{completedAt:new Date().toISOString()}:{})});
     this.state.history=[...this.state.history.filter(item=>item.id!==record.id),record];
     await this.progressStore.queue(this.state.account,this.state.queue);
   }
@@ -144,13 +146,13 @@ class Manager {
     if(data.activityUrl)activities.activityUrl(this.browser||this.browserFactory(),data.activityUrl);
     this.begin(async signal=>{
       this.mousePreferences={humanizedMouse:config.humanizedMouse};
-      const solver=this.solverFactory({baseUrl,model:config.model,doubleCheck:config.doubleCheck,sourceLoader:(question,sourceSignal,options)=>this.browser.researchSources(question,sourceSignal,options)});
+      const solver=this.solverFactory({baseUrl,model:config.model,doubleCheck:config.doubleCheck,sourceLoader:(question,sourceSignal,options)=>{question.researchContext={activity:this.state.activity?.title,course:this.state.activity?.course,...question.researchContext};return this.browser.researchSources(question,sourceSignal,{...options,vision:config.visionResearch&&config.guessWhenStuck&&options?.refresh,visionBaseUrl:baseUrl});},webSourceLoader:config.webResearch?(question,sourceSignal)=>require('./web-sources.cjs').quickWebSources({...question,researchContext:{activity:this.state.activity?.title,course:this.state.activity?.course,...question.researchContext}},sourceSignal):null});
       let modelFailure;
       if(solver.check){this.state.message='Checking the local model…';try{await solver.check(signal);}catch(error){signal.throwIfAborted();if(!config.randomOpinions)throw error;modelFailure=error;this.state.message='Local AI unavailable. Factual questions need review; recognized opinions can still use random responses.';}}
       if(data.resume){await this.ensureSession(signal);if(!this.state.account)this.state.account=this.pendingAccount;}
       else await this.ensureAccount(data,signal);
       this.browser.setMousePreferences?.(this.mousePreferences);
-      this.state.runSettings={model:config.model,doubleCheck:config.doubleCheck,confidence:config.confidence,humanizedMouse:config.humanizedMouse,answerDelayMs:config.answerDelayMs,interestDelayMs:config.interestDelayMs};
+      this.state.runSettings={model:config.model,doubleCheck:config.doubleCheck,confidence:config.confidence,humanizedMouse:config.humanizedMouse,webResearch:config.webResearch,visionResearch:config.visionResearch,answerDelayMs:config.answerDelayMs,interestDelayMs:config.interestDelayMs};
       let tasks;
       if(data.resume&&this.pausedTasks?.length)tasks=this.pausedTasks;
       else if(data.resume&&this.state.activity)tasks=[{...this.state.activity,id:this.state.activity.id||this.state.activity.moduleId||this.dailyId(),url:this.state.activity.url,completed:false}];
@@ -161,7 +163,7 @@ class Manager {
         if(!tasks.length){this.state.phase='ready';this.state.message='Check the modules you want to run, then press Start.';return;}
         await this.saveSelection(tasks.map(task=>task.id));
       }else tasks=[{id:data.mode==='daily'?this.dailyId():data.activityUrl,mode:data.mode,url:data.activityUrl||'',title:data.mode==='daily'?'Daily Quiz':'Selected module',completed:false}];
-      this.state.queue=tasks.map(task=>({id:task.id,title:task.title,course:task.course||'',total:task.total||null,answered:task.answered||0,status:task.completed?'completed':'pending'}));
+      this.state.queue=tasks.map(task=>({id:task.id,title:task.title,course:task.course||'',total:task.total||null,answered:task.answered||0,...(C.validSiteScore(task.score)?{score:task.score}:{}),status:task.completed?'completed':'pending'}));
       this.state.count=0;this.state.events=[];this.batchOffset=0;this.pausedTasks=[];let attention=0;
       await this.progressStore.queue(this.state.account,this.state.queue);
       for(let index=0;index<tasks.length;index++){
@@ -200,13 +202,15 @@ class Manager {
           this.batchOffset+=result.count;this.state.count=this.batchOffset;
           if(result.reason!=='complete'){await this.outcome(task,'paused');this.pausedTasks=tasks.slice(index);this.state.phase='paused';this.state.message=result.message;return;}
           if(task.total)this.state.queue[index].answered=task.total;
-          await this.outcome(task,'completed');
+          await this.outcome(task,'completed',null,result.score);
         }catch(error){
           if(signal.aborted){await this.outcome(task,'paused');this.pausedTasks=[...new Map([...this.pausedTasks,...tasks.slice(index)].map(item=>[item.id,item])).values()];throw error;}
           if(error.code==='SESSION_RECOVERY_REQUIRED'||error.code==='SESSION_EXPIRED'){
             await this.outcome(task,'paused',error.message);this.pausedTasks=[...new Map([...this.pausedTasks,...tasks.slice(index)].map(item=>[item.id,item])).values()];this.state.phase='paused';this.state.error=true;this.state.message=error.message;return;
           }
-          attention++;this.batchOffset+=this.state.taskCount;this.state.count=this.batchOffset;await this.outcome(task,'needs-attention',error.message);this.pausedTasks.push(task);
+          const lastQuestion=[...this.state.events].reverse().find(event=>event.task===task.title&&event.question)?.question;
+          const failure={code:error.code||'RESEARCH_FAILED',details:error.details||null,question:lastQuestion||null,at:new Date().toISOString()};
+          attention++;this.batchOffset+=this.state.taskCount;this.state.count=this.batchOffset;await this.outcome(task,'needs-attention',error.message,null,failure);this.pausedTasks.push(task);
           this.state.events.push({type:'task-error',task:task.title,message:error.message,...(error.code?{code:error.code}:{}),...(error.details?{details:error.details}:{}),at:new Date().toISOString()});
         }
       }

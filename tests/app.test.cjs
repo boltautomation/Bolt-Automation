@@ -78,7 +78,7 @@ test('run settings report the model actually passed to the solver and change on 
   data.settings.model='qwen3.8:27b';
   await m.job;
   assert.equal(m.snapshot().runSettings.model,'qwen3:4b');
-  assert.deepEqual(Object.keys(m.snapshot().runSettings).sort(),['answerDelayMs','confidence','doubleCheck','humanizedMouse','interestDelayMs','model']);
+  assert.deepEqual(Object.keys(m.snapshot().runSettings).sort(),['answerDelayMs','confidence','doubleCheck','humanizedMouse','interestDelayMs','model','visionResearch','webResearch']);
   m.run(data);await m.job;
   assert.equal(m.snapshot().runSettings.model,'qwen3.8:27b');
   assert.deepEqual(models,['qwen3:4b','qwen3.8:27b']);
@@ -167,13 +167,36 @@ test('checked module queue completes both tasks and persists completion per acco
   const history=await m.progressStore.get('first@example.com');assert.equal(Object.values(history.items).filter(item=>item.status==='completed').length,2);
   assert.equal(Object.keys((await m.progressStore.get('second@example.com')).items).length,0);
 });
+
+test('completed module scores come from the site and persist in queue, modules and history',async()=>{
+  const {m,browsers}=manager();m.connect(credentials());await m.job;
+  const browser=browsers[0],quiz=browser.quiz.bind(browser);
+  browser.quiz=async message=>{const result=await quiz(message);return {...result,...(result.complete?{score:{correct:0,total:10,source:'site'}}:{})};};
+  m.run({...runData(),mode:'modules',moduleIds:[m.state.modules[0].id]});await m.job;
+  const score={correct:0,total:10,source:'site'};
+  assert.equal(m.state.phase,'complete');assert.deepEqual(m.state.queue[0].score,score);assert.deepEqual(m.state.modules[0].score,score);assert.equal(m.state.queue[0].answered,10);
+  assert.deepEqual(m.state.history.find(item=>item.id===m.state.modules[0].id).score,score);
+  const saved=await m.progressStore.get(credentials().email);assert.deepEqual(saved.queue[0].score,score);assert.deepEqual(saved.items[m.state.modules[0].id].score,score);
+});
+
+test('outside research follows the saved run preference and can be completely disabled',async()=>{
+  const {m}=manager();const configurations=[];
+  m.solverFactory=options=>{configurations.push(options);return{solve:async()=>good};};
+  m.run({...runData(),settings:{webResearch:false}});await m.job;
+  assert.equal(configurations[0].webSourceLoader,null);assert.equal(m.state.runSettings.webResearch,false);
+  m.run({...runData(),settings:{webResearch:true}});await m.job;
+  assert.equal(typeof configurations[1].webSourceLoader,'function');assert.equal(m.state.runSettings.webResearch,true);
+});
 test('queue moves past a failed module and can retry it from the right task',async()=>{
   const {m}=manager();m.connect(credentials());await m.job;
   m.solverFactory=()=>({solve:async()=>{if(m.browser.currentUrl.endsWith('/1'))throw new Error('Could not quote supporting evidence');return good;}});
   m.run({...runData(),mode:'modules',moduleIds:['https://chatterhigh.com/modules/1','https://chatterhigh.com/modules/2']});await m.job;
   assert.deepEqual(m.state.queue.map(item=>item.status),['needs-attention','completed']);assert.equal(m.state.phase,'paused');
+  const failure=m.state.queue[0].failure;assert.equal(failure.code,'RESEARCH_FAILED');assert.deepEqual(failure.question,q);
+  assert.deepEqual((await m.progressStore.get(credentials().email)).items['https://chatterhigh.com/modules/1'].failure,failure);
   m.solverFactory=()=>({solve:async()=>good});m.run({...runData(),mode:'modules',resume:true});await m.job;
   assert.equal(m.state.phase,'complete');assert.equal(m.browser.currentUrl,'https://chatterhigh.com/modules/1');
+  assert.equal((await m.progressStore.get(credentials().email)).items['https://chatterhigh.com/modules/1'].failure,null);
 });
 
 test('educated guessing pauses when the local model is unavailable instead of submitting random answers',async()=>{

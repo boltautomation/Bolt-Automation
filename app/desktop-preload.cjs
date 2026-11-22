@@ -1,0 +1,2 @@
+const {contextBridge,ipcRenderer}=require('electron');
+contextBridge.exposeInMainWorld('boltDesktop',Object.freeze({platform:process.platform,minimize:()=>ipcRenderer.send('bolt-window','minimize'),maximize:()=>ipcRenderer.send('bolt-window','maximize'),close:()=>ipcRenderer.send('bolt-window','close'),ready:()=>ipcRenderer.send('bolt-window','ready'),onState:callback=>{const handler=(_,state)=>callback(state);ipcRenderer.on('bolt-window-state',handler);return()=>ipcRenderer.removeListener('bolt-window-state',handler);}}));

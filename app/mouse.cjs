@@ -33,7 +33,11 @@ function installCursor(position){
     const host=document.createElement('span');host.dataset.boltCursor='';host.setAttribute('aria-hidden','true');
     host.style.cssText='position:fixed!important;left:0!important;top:0!important;width:22px!important;height:28px!important;z-index:2147483647!important;pointer-events:none!important;contain:layout style!important;';
     const shadow=host.attachShadow({mode:'closed'});
-    shadow.innerHTML='<style>:host{pointer-events:none}svg{display:block;filter:drop-shadow(1px 2px 2px #0008)}:host([data-pressed]) svg{filter:drop-shadow(0 0 4px #9de8ff)}</style><svg width="22" height="28" viewBox="0 0 22 28" xmlns="http://www.w3.org/2000/svg"><path d="M2 2v21l5-5 4 8 4-2-4-8h8Z" fill="#f5faff" stroke="#243442" stroke-width="1.5" stroke-linejoin="round"/></svg>';
+    const style=document.createElement('style');style.textContent=':host{pointer-events:none}svg{display:block;filter:drop-shadow(1px 2px 2px #0008)}:host([data-pressed]) svg{filter:drop-shadow(0 0 4px #9de8ff)}';
+    const svg=document.createElementNS('http://www.w3.org/2000/svg','svg'),path=document.createElementNS('http://www.w3.org/2000/svg','path');
+    for(const [key,value]of Object.entries({width:'22',height:'28',viewBox:'0 0 22 28'}))svg.setAttribute(key,value);
+    for(const [key,value]of Object.entries({d:'M2 2v21l5-5 4 8 4-2-4-8h8Z',fill:'#f5faff',stroke:'#243442','stroke-width':'1.5','stroke-linejoin':'round'}))path.setAttribute(key,value);
+    svg.append(path);shadow.append(style,svg);
     document.documentElement.append(host);globalThis.__boltCursor=host;
     document.addEventListener('mousemove',event=>{const cursor=globalThis.__boltCursor;if(cursor?.isConnected)cursor.style.transform=`translate(${event.clientX}px,${event.clientY}px)`;},true);
     document.addEventListener('mousedown',()=>globalThis.__boltCursor?.setAttribute('data-pressed',''),true);

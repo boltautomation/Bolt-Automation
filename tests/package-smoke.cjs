@@ -7,7 +7,7 @@ const {promisify}=require('node:util');
 const {testPdf}=require('./pdf-fixture.cjs');
 const execute=promisify(execFile);
 (async()=>{
-  const project=path.resolve(__dirname,'..'),zip=path.join(project,'releases',require('../package.json').artifacts.windows);
+  const project=path.resolve(__dirname,'..'),zip=path.join(process.env.BOLT_PACKAGE_DIR||path.join(project,'releases'),require('../package.json').artifacts.windows);
   const temporary=path.join(project,'test-results',`package smoke ${randomUUID()}`);
   const powershell=path.join(process.env.SystemRoot,'System32/WindowsPowerShell/v1.0/powershell.exe');
   await fs.mkdir(temporary,{recursive:true});

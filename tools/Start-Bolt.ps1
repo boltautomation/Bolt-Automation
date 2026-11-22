@@ -12,6 +12,17 @@ function Test-BoltServer([string]$Origin) {
 try {
     $serverPath = Join-Path $resourceRoot 'app\server.cjs'
     if (-not (Test-Path -LiteralPath $serverPath)) { throw 'Extract the entire Bolt ZIP first, then open Start Bolt.cmd inside the extracted Bolt folder.' }
+    if (-not $CheckOnly) {
+        $desktopCandidates = @((Join-Path $appRoot 'Desktop\Bolt-win32-x64\Bolt.exe'),(Join-Path $appRoot 'releases\desktop-current\Bolt-win32-x64\Bolt.exe'),(Join-Path $appRoot 'releases\desktop\Bolt-win32-x64\Bolt.exe'))
+        foreach ($desktopPath in $desktopCandidates) {
+            if (Test-Path -LiteralPath $desktopPath) {
+                $env:BOLT_LEGACY_DATA_DIR = Join-Path $resourceRoot '.app-runtime'
+                if ($resourceRoot -eq $appRoot) { $env:BOLT_DATA_DIR = Join-Path $appRoot '.app-runtime'; $env:BOLT_DESKTOP_PROFILE = Join-Path $appRoot '.app-runtime\desktop' }
+                Start-Process -FilePath $desktopPath -WorkingDirectory $appRoot -WindowStyle Normal
+                exit 0
+            }
+        }
+    }
     $nodeCandidates = @((Join-Path $resourceRoot 'runtime\node.exe'), (Join-Path $PSScriptRoot 'runtime\node.exe'))
     $nodeCommand = Get-Command node -ErrorAction SilentlyContinue
     if ($nodeCommand) { $nodeCandidates += $nodeCommand.Source }

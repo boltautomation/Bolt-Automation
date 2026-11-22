@@ -30,26 +30,28 @@ function publicLookup(hostname, options, callback) {
     if (options.all) callback(null, matching); else callback(null, matching[0].address, matching[0].family);
   });
 }
-function download(value, signal, hops = 0) {
+function download(value, signal, hops = 0, mediaText = false) {
   signal.throwIfAborted();
   const url = publicUrl(value);
+  const binary=['pdf','image','research-pdf'].includes(mediaText),limit=mediaText==='research-pdf'?32*1024*1024:binary?8*1024*1024:mediaText==='video'?3*1024*1024:1500000;
   return new Promise((resolve, reject) => {
     const request = (url.protocol === 'https:' ? https : http).get(url, {
       lookup: publicLookup, agent: false, signal: AbortSignal.any([signal, AbortSignal.timeout(18000)]),
-      headers: { 'User-Agent': 'ChatterHighLocalApp/2.0', Accept: 'text/html,text/plain,application/xhtml+xml', 'Accept-Encoding': 'identity' }
+      headers: { 'User-Agent': 'Bolt/1.1', Accept: binary?'application/pdf':mediaText?'text/vtt,text/plain,application/json,application/x-subrip,application/ttml+xml':'text/html,text/plain,application/xhtml+xml', 'Accept-Encoding': 'identity' }
     }, response => {
       if (response.statusCode >= 300 && response.statusCode < 400 && response.headers.location) {
         response.resume();
         if (hops >= 4) return reject(new Error('Too many research redirects.'));
-        try { resolve(download(new URL(response.headers.location, url).href, signal, hops + 1)); } catch (error) { reject(error); } return;
+        try { resolve(download(new URL(response.headers.location, url).href, signal, hops + 1,mediaText)); } catch (error) { reject(error); } return;
       }
       if (response.statusCode !== 200) { response.resume(); reject(new Error('Research page could not be read.')); return; }
       const type = response.headers['content-type'] || '';
-      if (!/text\/html|text\/plain|application\/xhtml\+xml/i.test(type)) { response.resume(); reject(new Error('This research resource is not a text webpage.')); return; }
-      let content = ''; let bytes = 0;
-      response.setEncoding('utf8');
-      response.on('data', chunk => { bytes += Buffer.byteLength(chunk); if (bytes > 1500000) request.destroy(new Error('Research page is too large.')); else content += chunk; });
-      response.on('end', () => resolve({ url: url.href, content, type })); response.on('error', reject);
+      const supported=mediaText==='image'?/image\/(?:png|jpe?g|webp|bmp)|application\/octet-stream/i.test(type):binary?/application\/(?:pdf|octet-stream)/i.test(type):/text\/html|text\/plain|application\/xhtml\+xml/i.test(type)||mediaText&&/application\/(?:json|x-subrip|ttml\+xml|xml)|text\/(?:vtt|srt|xml)/i.test(type);
+      if (!supported) { response.resume(); reject(new Error('This research resource has an unsupported document type.')); return; }
+      let content = binary?[]:''; let bytes = 0;
+      if(!binary)response.setEncoding('utf8');
+      response.on('data', chunk => { bytes += Buffer.byteLength(chunk); if (bytes > limit) request.destroy(new Error('Research resource is too large.')); else if(binary)content.push(chunk);else content += chunk; });
+      response.on('end', () => {const value=binary?Buffer.concat(content):content;if(mediaText==='image'&&!/^(?:\x89PNG|\xff\xd8\xff|BM|RIFF)/.test(value.subarray(0,12).toString('latin1')))return reject(new Error('This research resource is not a supported image.'));resolve({ url: url.href, content:value, type });}); response.on('error', reject);
     });
     request.on('error', reject);
   });
@@ -63,6 +65,14 @@ function decode(text) {
   });
 }
 const normalize = text => String(text).replace(/\s+/g, ' ').trim();
+const archiveNotice=source=>(source.text||'').length<2000&&/information archiv[eé]e? dans le web|information archived on the web/i.test(normalize(source.title||''));
+function sourceIssue(source){
+  const title=normalize(source.title||'');
+  if(archiveNotice(source))return 'This is an archive continuation notice, not the publication text.';
+  if(/^(?:access denied|just a moment|forbidden|error\s*404|404\b|page not found|502\b|503\b|service unavailable|captcha|sign in|log in)/i.test(title))return 'The source is blocked, unavailable, or moved.';
+  if((source.text||'').length<500&&/verify you are human|checking your browser|enable javascript and cookies to continue|bad gateway/i.test(source.text||''))return 'The source returned a verification or error page.';
+  return null;
+}
 function pageText(html) {
   const title = decode(html.match(/<title[^>]*>([\s\S]*?)<\/title>/i)?.[1] || '').replace(/<[^>]*>/g, '');
   const stripped = html.replace(/<(script|style|noscript|svg)\b[^>]*>[\s\S]*?<\/\1>/gi, ' ').replace(/<!--[^]*?-->/g, ' ').replace(/<[^>]*>/g, ' ');
@@ -99,4 +109,4 @@ async function loadSources(question, signal, { downloader = download } = {}) {
   }
   return sources;
 }
-module.exports = { publicAddress, publicUrl, publicLookup, download, pageText, excerpts, loadSources, normalize };
+module.exports = { publicAddress, publicUrl, publicLookup, download, pageText, excerpts, loadSources, normalize,sourceIssue,archiveNotice };
