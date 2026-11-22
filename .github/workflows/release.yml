@@ -40,7 +40,8 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm test
-      - run: node tests/desktop-smoke.cjs
+      - name: Verify desktop interaction and accessibility modes
+        run: node tests/desktop-smoke.cjs
       - name: Prepare Windows portable runtime
         if: matrix.platform == 'windows'
         shell: pwsh
