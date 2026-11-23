@@ -4,6 +4,7 @@ const release=require('../package.json'),windowTitle='Bolt - '+release.versionNa
 app.setName('Bolt');app.setAppUserModelId('com.boltautomation.Bolt');
 if(process.env.BOLT_DESKTOP_PROFILE)app.setPath('userData',path.resolve(process.env.BOLT_DESKTOP_PROFILE));
 let mainWindow,backend,backendOrigin,closing=false;
+const testTrace=message=>{if(process.env.BOLT_DESKTOP_TEST==='1')console.log('[Bolt desktop] '+message);};
 const port=Number(process.env.BOLT_PORT||process.env.CHATTERHIGH_PORT||43117);
 async function prepareData(){
  if(process.env.BOLT_DATA_DIR)return;
@@ -30,7 +31,8 @@ async function startInstalledOllama(){
  for(const executable of candidates)try{await fs.access(executable);const child=require('node:child_process').spawn(executable,['serve'],{detached:true,stdio:'ignore',windowsHide:true});child.on('error',()=>{});child.unref();break;}catch{}
 }
 async function shutdownBackend(){
- if(backend){await backend.close();backend=null;return;}
+ testTrace('Saving and closing backend');
+ if(backend){await backend.close();backend=null;testTrace('Backend closed');return;}
  if(!backendOrigin)return;
  try{const html=await(await fetch(backendOrigin)).text(),token=html.match(/name="app-token" content="([^"]+)"/)?.[1];if(token)await fetch(backendOrigin+'/api/shutdown',{method:'POST',headers:{'X-App-Token':token,'Content-Type':'application/json'},body:'{}'});}catch{}
 }
@@ -43,14 +45,14 @@ async function openWindow(){
  mainWindow.webContents.session.setPermissionRequestHandler((_,__,callback)=>callback(false));
  for(const event of ['maximize','unmaximize'])mainWindow.on(event,()=>notifyState());
  mainWindow.on('minimize',()=>notifyState({minimized:true}));mainWindow.on('restore',()=>notifyState({minimized:false}));
- mainWindow.on('close',event=>{if(closing)return;event.preventDefault();closing=true;shutdownBackend().finally(()=>app.quit());});
+ mainWindow.on('close',event=>{if(closing)return;event.preventDefault();closing=true;testTrace('Window close requested');mainWindow.destroy();shutdownBackend().finally(()=>app.quit());});
  await mainWindow.loadURL(backendOrigin);mainWindow.show();notifyState();
  if(!app.isPackaged&&process.env.BOLT_DESKTOP_READY_FILE)await fs.writeFile(process.env.BOLT_DESKTOP_READY_FILE,JSON.stringify({origin:backendOrigin,pid:process.pid}));
 }
 ipcMain.on('bolt-window',(event,action)=>{if(!mainWindow||event.sender!==mainWindow.webContents||event.senderFrame!==mainWindow.webContents.mainFrame)return;let url;try{url=new URL(event.senderFrame.url);}catch{return;}if(url.origin!==backendOrigin)return;if(action==='minimize')mainWindow.minimize();else if(action==='maximize')mainWindow.isMaximized()?mainWindow.unmaximize():mainWindow.maximize();else if(action==='close')mainWindow.close();else if(action==='ready')notifyState();});
 if(!app.requestSingleInstanceLock())app.quit();else{
- app.on('second-instance',()=>{if(mainWindow){if(mainWindow.isMinimized())mainWindow.restore();mainWindow.show();mainWindow.focus();}});
+ app.on('second-instance',()=>{if(mainWindow&&!mainWindow.isDestroyed()){if(mainWindow.isMinimized())mainWindow.restore();mainWindow.show();mainWindow.focus();}});
  app.whenReady().then(async()=>{if(process.platform!=='darwin')Menu.setApplicationMenu(null);await prepareData();await connectBackend();await openWindow();startInstalledOllama().catch(()=>{});}).catch(error=>{require('electron').dialog.showErrorBox('Bolt could not start',error.message);app.quit();});
- app.on('window-all-closed',()=>app.quit());
- app.on('before-quit',event=>{if(!closing){event.preventDefault();closing=true;shutdownBackend().finally(()=>app.quit());}});
+ app.on('window-all-closed',()=>{if(!closing)app.quit();});
+ app.on('before-quit',event=>{testTrace('Quit requested; closing='+closing);if(!closing){event.preventDefault();closing=true;shutdownBackend().finally(()=>app.quit());}});
 }

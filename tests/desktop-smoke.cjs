@@ -39,7 +39,7 @@ const release=require('../package.json');
   reopenProcess=spawn(executable,args,{env,stdio:'ignore',windowsHide:false});reopenProcess.on('error',()=>{});
   await until('window.testWindowStates.some(state=>state.minimized===false)','Reopening Bolt did not restore its window');
   try{await evaluate(`document.querySelector('#window-close').click()`);}catch(error){if(!/browser was closed|connection is unavailable|Target closed|Session closed/i.test(error.message))throw error;}
-  for(let n=0;n<200&&child.exitCode===null;n++)await wait(100);assert.equal(child.exitCode,0);let stopped=false;try{await fetch(origin+'/health',{signal:AbortSignal.timeout(600)});}catch{stopped=true;}assert.ok(stopped,'Closing desktop stops its owned local backend');
+  for(let n=0;n<200&&child.exitCode===null;n++)await wait(100);assert.equal(child.exitCode,0,'Desktop did not exit cleanly. '+output.slice(-1800));let stopped=false;try{await fetch(origin+'/health',{signal:AbortSignal.timeout(600)});}catch{stopped=true;}assert.ok(stopped,'Closing desktop stops its owned local backend');
   console.log('PASS native Bolt launch, isolated renderer, custom title bar, glass sidebar, continuous and rapid highlight transitions, reduced motion, persistent controls, maximize/restore/minimize/close, actual PDF worker and backend shutdown');
  }finally{protocol?.socket.close();if(child.exitCode===null)child.kill();if(reopenProcess?.exitCode===null)reopenProcess.kill();child.stdout.destroy();child.stderr.destroy();}
 })().catch(error=>{console.error(error.stack);process.exitCode=1;});
