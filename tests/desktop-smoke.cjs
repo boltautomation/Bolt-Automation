@@ -7,7 +7,7 @@ const release=require('../package.json');
  await new Preferences({file:path.join(directory,'data/preferences.json')}).save({answerDelayMs:3000,interestDelayMs:5000,confidence:.9});
  const executable=process.env.BOLT_DESKTOP_EXECUTABLE||require('electron'),args=process.env.BOLT_DESKTOP_EXECUTABLE?[]:['.'];
  const env={...process.env,BOLT_PORT:'0',BOLT_DATA_DIR:path.join(directory,'data'),BOLT_DESKTOP_PROFILE:path.join(directory,'profile'),BOLT_DESKTOP_READY_FILE:ready,BOLT_DESKTOP_TEST:'1'};delete env.ELECTRON_RUN_AS_NODE;
- const child=spawn(executable,[...args,'--remote-debugging-port=0'],{env,stdio:['ignore','pipe','pipe'],windowsHide:false});let output='',protocol,origin;
+ const child=spawn(executable,[...args,'--remote-debugging-port=0'],{env,stdio:['ignore','pipe','pipe'],windowsHide:false});let output='',protocol,origin,reopenProcess;
  child.stderr.on('data',d=>output+=d);child.stdout.on('data',d=>output+=d);
  try{
   let address;for(let n=0;n<120;n++){address=output.match(/DevTools listening on (ws:\/\/[^\s]+)/)?.[1];if(address)break;if(child.exitCode!==null)throw Error('Desktop process stopped: '+output);await wait(100);}assert.ok(address,'Desktop exposes an isolated test debugger');protocol=await Protocol.connect(address);
@@ -34,8 +34,12 @@ const release=require('../package.json');
   const imported=await fetch(origin+'/api/study/import?name=Desktop-fixture.pdf',{method:'POST',headers:{...headers,'Content-Type':'application/pdf'},body:testPdf(['The desktop PDF worker reads this actual source document.'])});assert.equal(imported.status,200,JSON.stringify(await imported.clone().json()));
   await evaluate(`document.querySelector('[data-tab=autobot]').click()`);await wait(350);const screenshot=await command('Page.captureScreenshot',{format:'png'});await fs.writeFile(path.resolve('test-results/desktop-preview.png'),Buffer.from(screenshot.data,'base64'));
   await evaluate(`document.querySelector('#sidebar-toggle').click()`);await wait(400);const workspace=await command('Page.captureScreenshot',{format:'png'});await fs.writeFile(path.resolve('test-results/desktop-workspace.png'),Buffer.from(workspace.data,'base64'));
-  await evaluate(`window.testWindowStates=[];window.boltDesktop.onState(state=>window.testWindowStates.push(state));document.querySelector('#window-minimize').click()`);await until('window.testWindowStates.some(state=>state.minimized)','Minimize did not finish');await evaluate(`document.querySelector('#window-close').click()`);
-  for(let n=0;n<60&&child.exitCode===null;n++)await wait(100);assert.equal(child.exitCode,0);let stopped=false;try{await fetch(origin+'/health',{signal:AbortSignal.timeout(600)});}catch{stopped=true;}assert.ok(stopped,'Closing desktop stops its owned local backend');
+  await evaluate(`window.testWindowStates=[];window.boltDesktop.onState(state=>window.testWindowStates.push(state));document.querySelector('#window-minimize').click()`);await until('window.testWindowStates.some(state=>state.minimized)','Minimize did not finish');
+  // Reopening the launcher restores the existing window, as a user would after minimizing.
+  reopenProcess=spawn(executable,args,{env,stdio:'ignore',windowsHide:false});reopenProcess.on('error',()=>{});
+  await until('window.testWindowStates.some(state=>state.minimized===false)','Reopening Bolt did not restore its window');
+  try{await evaluate(`document.querySelector('#window-close').click()`);}catch(error){if(!/browser was closed|connection is unavailable|Target closed|Session closed/i.test(error.message))throw error;}
+  for(let n=0;n<200&&child.exitCode===null;n++)await wait(100);assert.equal(child.exitCode,0);let stopped=false;try{await fetch(origin+'/health',{signal:AbortSignal.timeout(600)});}catch{stopped=true;}assert.ok(stopped,'Closing desktop stops its owned local backend');
   console.log('PASS native Bolt launch, isolated renderer, custom title bar, glass sidebar, continuous and rapid highlight transitions, reduced motion, persistent controls, maximize/restore/minimize/close, actual PDF worker and backend shutdown');
- }finally{protocol?.socket.close();if(child.exitCode===null)child.kill();child.stdout.destroy();child.stderr.destroy();}
+ }finally{protocol?.socket.close();if(child.exitCode===null)child.kill();if(reopenProcess?.exitCode===null)reopenProcess.kill();child.stdout.destroy();child.stderr.destroy();}
 })().catch(error=>{console.error(error.stack);process.exitCode=1;});
